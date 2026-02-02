@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Calculator from '@/components/Calculator';
 import ResultsTable from '@/components/ResultsTable';
+import ProfitAnalysis from '@/components/ProfitAnalysis';
 import ExportButton from '@/components/ExportButton';
 import type { CalculationResult, CalculatorInput } from '@/types';
 
@@ -11,6 +12,7 @@ export default function Home() {
   const router = useRouter();
   const [result, setResult] = useState<CalculationResult | null>(null);
   const [input, setInput] = useState<CalculatorInput | null>(null);
+  const [isvCharge, setIsvCharge] = useState(0);
   const [saving, setSaving] = useState(false);
   const [scenarioName, setScenarioName] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -89,7 +91,7 @@ export default function Home() {
         </div>
       )}
 
-      <Calculator onCalculate={handleCalculate} />
+      <Calculator onCalculate={handleCalculate} isvCharge={isvCharge} onIsvChargeChange={setIsvCharge} />
 
       {result && input && (
         <div className="space-y-4">
@@ -107,6 +109,14 @@ export default function Home() {
           </div>
 
           <ResultsTable result={result} />
+
+          {isvCharge > 0 && (
+            <ProfitAnalysis
+              isvCharge={isvCharge}
+              concurrentUsers={input.concurrentUsers}
+              totalMonthlyCost={result.totalMonthly}
+            />
+          )}
         </div>
       )}
 

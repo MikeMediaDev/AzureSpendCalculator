@@ -8,9 +8,12 @@ interface CalculatorProps {
   onCalculate: (result: CalculationResult, input: CalculatorInput) => void;
   initialInput?: Partial<CalculatorInput>;
   isLoading?: boolean;
+  isvCharge: number;
+  onIsvChargeChange: (value: number) => void;
 }
 
-export default function Calculator({ onCalculate, initialInput, isLoading }: CalculatorProps) {
+export default function Calculator({ onCalculate, initialInput, isLoading, isvCharge, onIsvChargeChange }: CalculatorProps) {
+  const [isvChargeInput, setIsvChargeInput] = useState(String(isvCharge || 0));
   const [region, setRegion] = useState(initialInput?.region || 'eastus');
   const [concurrentUsers, setConcurrentUsers] = useState(initialInput?.concurrentUsers || MIN_CONCURRENT_USERS);
   const [concurrentUsersInput, setConcurrentUsersInput] = useState(String(initialInput?.concurrentUsers || MIN_CONCURRENT_USERS));
@@ -103,6 +106,31 @@ export default function Calculator({ onCalculate, initialInput, isLoading }: Cal
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={isLoading || calculating}
           />
+        </div>
+
+        <div>
+          <label htmlFor="isvCharge" className="block text-sm font-medium text-gray-700 mb-1">
+            ISV Charge (per user)
+          </label>
+          <div className="relative">
+            <span className="absolute left-3 top-2 text-gray-500">$</span>
+            <input
+              id="isvCharge"
+              type="number"
+              min={0}
+              step="0.01"
+              value={isvChargeInput}
+              onChange={(e) => setIsvChargeInput(e.target.value)}
+              onBlur={(e) => {
+                const parsed = parseFloat(e.target.value);
+                const validated = Math.max(0, parsed || 0);
+                onIsvChargeChange(validated);
+                setIsvChargeInput(validated.toFixed(2));
+              }}
+              className="w-full rounded-md border border-gray-300 pl-7 pr-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isLoading || calculating}
+            />
+          </div>
         </div>
 
         <div>

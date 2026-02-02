@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Calculator from '@/components/Calculator';
 import ResultsTable from '@/components/ResultsTable';
+import ProfitAnalysis from '@/components/ProfitAnalysis';
 import ExportButton from '@/components/ExportButton';
 import { US_REGIONS } from '@/lib/constants';
 import type { Scenario, CalculationResult, CalculatorInput } from '@/types';
@@ -25,6 +26,7 @@ export default function ScenarioPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isvCharge, setIsvCharge] = useState(0);
 
   useEffect(() => {
     const fetchScenario = async () => {
@@ -162,11 +164,22 @@ export default function ScenarioPage({ params }: PageProps) {
         <Calculator
           onCalculate={handleRecalculate}
           initialInput={input}
+          isvCharge={isvCharge}
+          onIsvChargeChange={setIsvCharge}
         />
       )}
 
       {scenario.calculationResult && (
-        <ResultsTable result={scenario.calculationResult} />
+        <>
+          <ResultsTable result={scenario.calculationResult} />
+          {isvCharge > 0 && (
+            <ProfitAnalysis
+              isvCharge={isvCharge}
+              concurrentUsers={scenario.concurrentUsers}
+              totalMonthlyCost={scenario.calculationResult.totalMonthly}
+            />
+          )}
+        </>
       )}
 
       {!scenario.calculationResult && !isEditing && (
