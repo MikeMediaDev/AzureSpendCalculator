@@ -3,11 +3,15 @@ import type { AzurePrice, Scenario, ScenarioCreateInput, ScenarioUpdateInput, Ca
 
 const connectionString = process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/postgres';
 
+// Use SSL for cloud databases (Supabase, Vercel Postgres, etc.)
+const isCloudDb = !!(process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING) ||
+  connectionString?.includes('supabase') ||
+  connectionString?.includes('pooler') ||
+  connectionString?.includes('neon');
+
 const pool = new Pool({
   connectionString,
-  ssl: connectionString?.includes('supabase') || connectionString?.includes('pooler')
-    ? { rejectUnauthorized: false }
-    : undefined,
+  ssl: isCloudDb ? { rejectUnauthorized: false } : undefined,
 });
 
 // Test database connection
