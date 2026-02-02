@@ -2,7 +2,7 @@ import { Pool } from 'pg';
 import type { AzurePrice, Scenario, ScenarioCreateInput, ScenarioUpdateInput, CalculationResult } from '@/types';
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL || process.env.DATABASE_SUPABASE_URL,
 });
 
 // Azure Prices
