@@ -13,7 +13,8 @@
       "WebFetch(domain:prices.azure.com)",
       "Bash(git add:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd reservationTerm to scenarios and fix CSV export\n\n- Add reservationTerm field to scenario create/update API routes\n- Update database functions \\(createScenario, getScenario, getAllScenarios, \n  updateScenario\\) to include reservation_term column\n- Fix ExportButton CSV export error by converting values to Number\\(\\) \n  before calling toFixed\\(\\) to handle string values from database\n\nNote: Requires database migration to add reservation_term column:\nALTER TABLE scenarios ADD COLUMN IF NOT EXISTS reservation_term VARCHAR\\(10\\) DEFAULT ''3year'';\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(npm ls:*)"
     ]
   }
 }

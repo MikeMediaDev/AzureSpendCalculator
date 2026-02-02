@@ -111,6 +111,7 @@ export default function ScenarioPage({ params }: PageProps) {
     concurrentUsers: scenario.concurrentUsers,
     workloadType: scenario.workloadType,
     anfServiceLevel: scenario.anfServiceLevel,
+    reservationTerm: scenario.reservationTerm,
   };
 
   return (
