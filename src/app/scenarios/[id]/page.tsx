@@ -7,8 +7,8 @@ import Calculator from '@/components/Calculator';
 import ResultsTable from '@/components/ResultsTable';
 import ProfitAnalysis from '@/components/ProfitAnalysis';
 import ExportButton from '@/components/ExportButton';
-import { US_REGIONS } from '@/lib/constants';
-import type { Scenario, CalculationResult, CalculatorInput } from '@/types';
+import { US_REGIONS, SUPPORT_LEVELS } from '@/lib/constants';
+import type { Scenario, CalculationResult, CalculatorInput, SupportLevel } from '@/types';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -27,6 +27,8 @@ export default function ScenarioPage({ params }: PageProps) {
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isvCharge, setIsvCharge] = useState(0);
+  const [supportLevel, setSupportLevel] = useState<SupportLevel>('low');
+  const [supportHourlyRate, setSupportHourlyRate] = useState(0);
 
   useEffect(() => {
     const fetchScenario = async () => {
@@ -35,6 +37,9 @@ export default function ScenarioPage({ params }: PageProps) {
         if (response.ok) {
           const data = await response.json();
           setScenario(data.scenario);
+          setIsvCharge(Number(data.scenario.isvCharge) || 0);
+          setSupportLevel(data.scenario.supportLevel || 'low');
+          setSupportHourlyRate(Number(data.scenario.supportHourlyRate) || 0);
         } else if (response.status === 404) {
           setError('Scenario not found');
         } else {
@@ -57,6 +62,9 @@ export default function ScenarioPage({ params }: PageProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...input,
+          isvCharge,
+          supportLevel,
+          supportHourlyRate,
           calculationResult: result,
         }),
       });
@@ -166,17 +174,23 @@ export default function ScenarioPage({ params }: PageProps) {
           initialInput={input}
           isvCharge={isvCharge}
           onIsvChargeChange={setIsvCharge}
+          supportLevel={supportLevel}
+          onSupportLevelChange={setSupportLevel}
+          supportHourlyRate={supportHourlyRate}
+          onSupportHourlyRateChange={setSupportHourlyRate}
         />
       )}
 
       {scenario.calculationResult && (
         <>
           <ResultsTable result={scenario.calculationResult} concurrentUsers={scenario.concurrentUsers} />
-          {isvCharge > 0 && (
+          {(isvCharge > 0 || supportHourlyRate > 0) && (
             <ProfitAnalysis
               isvCharge={isvCharge}
               concurrentUsers={scenario.concurrentUsers}
               totalMonthlyCost={scenario.calculationResult.totalMonthly}
+              supportHoursPerUser={SUPPORT_LEVELS.find(s => s.value === supportLevel)?.hoursPerUser || 0}
+              supportHourlyRate={supportHourlyRate}
             />
           )}
         </>

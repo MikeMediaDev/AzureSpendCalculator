@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { US_REGIONS, WORKLOAD_TYPES, ANF_SERVICE_LEVELS, RESERVATION_TERMS, MIN_CONCURRENT_USERS } from '@/lib/constants';
-import type { CalculatorInput, CalculationResult, WorkloadType, AnfServiceLevel, ReservationTerm } from '@/types';
+import { US_REGIONS, WORKLOAD_TYPES, ANF_SERVICE_LEVELS, RESERVATION_TERMS, SUPPORT_LEVELS, MIN_CONCURRENT_USERS } from '@/lib/constants';
+import type { CalculatorInput, CalculationResult, WorkloadType, AnfServiceLevel, ReservationTerm, SupportLevel } from '@/types';
 
 interface CalculatorProps {
   onCalculate: (result: CalculationResult, input: CalculatorInput) => void;
@@ -10,10 +10,15 @@ interface CalculatorProps {
   isLoading?: boolean;
   isvCharge: number;
   onIsvChargeChange: (value: number) => void;
+  supportLevel: SupportLevel;
+  onSupportLevelChange: (value: SupportLevel) => void;
+  supportHourlyRate: number;
+  onSupportHourlyRateChange: (value: number) => void;
 }
 
-export default function Calculator({ onCalculate, initialInput, isLoading, isvCharge, onIsvChargeChange }: CalculatorProps) {
+export default function Calculator({ onCalculate, initialInput, isLoading, isvCharge, onIsvChargeChange, supportLevel, onSupportLevelChange, supportHourlyRate, onSupportHourlyRateChange }: CalculatorProps) {
   const [isvChargeInput, setIsvChargeInput] = useState(String(isvCharge || 0));
+  const [supportHourlyRateInput, setSupportHourlyRateInput] = useState(String(supportHourlyRate || 0));
   const [region, setRegion] = useState(initialInput?.region || 'eastus');
   const [concurrentUsers, setConcurrentUsers] = useState(initialInput?.concurrentUsers || MIN_CONCURRENT_USERS);
   const [concurrentUsersInput, setConcurrentUsersInput] = useState(String(initialInput?.concurrentUsers || MIN_CONCURRENT_USERS));
@@ -126,6 +131,50 @@ export default function Calculator({ onCalculate, initialInput, isLoading, isvCh
                 const validated = Math.max(0, parsed || 0);
                 onIsvChargeChange(validated);
                 setIsvChargeInput(validated.toFixed(2));
+              }}
+              className="w-full rounded-md border border-gray-300 pl-7 pr-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isLoading || calculating}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="supportLevel" className="block text-sm font-medium text-gray-700 mb-1">
+            Support Level
+          </label>
+          <select
+            id="supportLevel"
+            value={supportLevel}
+            onChange={(e) => onSupportLevelChange(e.target.value as SupportLevel)}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={isLoading || calculating}
+          >
+            {SUPPORT_LEVELS.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label} - {s.description}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="supportHourlyRate" className="block text-sm font-medium text-gray-700 mb-1">
+            Support Hourly Rate
+          </label>
+          <div className="relative">
+            <span className="absolute left-3 top-2 text-gray-500">$</span>
+            <input
+              id="supportHourlyRate"
+              type="number"
+              min={0}
+              step="0.01"
+              value={supportHourlyRateInput}
+              onChange={(e) => setSupportHourlyRateInput(e.target.value)}
+              onBlur={(e) => {
+                const parsed = parseFloat(e.target.value);
+                const validated = Math.max(0, parsed || 0);
+                onSupportHourlyRateChange(validated);
+                setSupportHourlyRateInput(validated.toFixed(2));
               }}
               className="w-full rounded-md border border-gray-300 pl-7 pr-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={isLoading || calculating}

@@ -133,10 +133,11 @@ export async function getLastPriceRefresh(): Promise<Date | null> {
 
 export async function createScenario(input: ScenarioCreateInput): Promise<Scenario> {
   const result = await pool.query(
-    `INSERT INTO scenarios (name, region, concurrent_users, workload_type, anf_service_level, reservation_term, calculation_result)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO scenarios (name, region, concurrent_users, workload_type, anf_service_level, reservation_term, isv_charge, support_level, support_hourly_rate, calculation_result)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING id, name, region, concurrent_users as "concurrentUsers", workload_type as "workloadType",
                anf_service_level as "anfServiceLevel", reservation_term as "reservationTerm",
+               isv_charge as "isvCharge", support_level as "supportLevel", support_hourly_rate as "supportHourlyRate",
                calculation_result as "calculationResult", created_at as "createdAt", updated_at as "updatedAt"`,
     [
       input.name,
@@ -145,6 +146,9 @@ export async function createScenario(input: ScenarioCreateInput): Promise<Scenar
       input.workloadType,
       input.anfServiceLevel,
       input.reservationTerm,
+      input.isvCharge ?? 0,
+      input.supportLevel ?? 'low',
+      input.supportHourlyRate ?? 0,
       input.calculationResult ? JSON.stringify(input.calculationResult) : null,
     ]
   );
@@ -155,6 +159,7 @@ export async function getScenario(id: number): Promise<Scenario | null> {
   const result = await pool.query(
     `SELECT id, name, region, concurrent_users as "concurrentUsers", workload_type as "workloadType",
             anf_service_level as "anfServiceLevel", reservation_term as "reservationTerm",
+            isv_charge as "isvCharge", support_level as "supportLevel", support_hourly_rate as "supportHourlyRate",
             calculation_result as "calculationResult", created_at as "createdAt", updated_at as "updatedAt"
      FROM scenarios
      WHERE id = $1`,
@@ -167,6 +172,7 @@ export async function getAllScenarios(): Promise<Scenario[]> {
   const result = await pool.query(
     `SELECT id, name, region, concurrent_users as "concurrentUsers", workload_type as "workloadType",
             anf_service_level as "anfServiceLevel", reservation_term as "reservationTerm",
+            isv_charge as "isvCharge", support_level as "supportLevel", support_hourly_rate as "supportHourlyRate",
             calculation_result as "calculationResult", created_at as "createdAt", updated_at as "updatedAt"
      FROM scenarios
      ORDER BY updated_at DESC`
@@ -203,6 +209,18 @@ export async function updateScenario(id: number, input: ScenarioUpdateInput): Pr
     updates.push(`reservation_term = $${paramIndex++}`);
     values.push(input.reservationTerm);
   }
+  if (input.isvCharge !== undefined) {
+    updates.push(`isv_charge = $${paramIndex++}`);
+    values.push(input.isvCharge);
+  }
+  if (input.supportLevel !== undefined) {
+    updates.push(`support_level = $${paramIndex++}`);
+    values.push(input.supportLevel);
+  }
+  if (input.supportHourlyRate !== undefined) {
+    updates.push(`support_hourly_rate = $${paramIndex++}`);
+    values.push(input.supportHourlyRate);
+  }
   if (input.calculationResult !== undefined) {
     updates.push(`calculation_result = $${paramIndex++}`);
     values.push(JSON.stringify(input.calculationResult));
@@ -220,6 +238,7 @@ export async function updateScenario(id: number, input: ScenarioUpdateInput): Pr
      WHERE id = $${paramIndex}
      RETURNING id, name, region, concurrent_users as "concurrentUsers", workload_type as "workloadType",
                anf_service_level as "anfServiceLevel", reservation_term as "reservationTerm",
+               isv_charge as "isvCharge", support_level as "supportLevel", support_hourly_rate as "supportHourlyRate",
                calculation_result as "calculationResult", created_at as "createdAt", updated_at as "updatedAt"`,
     values
   );

@@ -97,5 +97,12 @@ export const GO_GLOBAL_PRICING_TIERS = [
 // Minimum concurrent users
 export const MIN_CONCURRENT_USERS = 25;
 
+// Support level options (hours per user per month)
+export const SUPPORT_LEVELS = [
+  { value: 'low', label: 'Low-touch', description: '0.1 hrs/user/mo', hoursPerUser: 0.1 },
+  { value: 'medium', label: 'Medium', description: '0.25 hrs/user/mo', hoursPerUser: 0.25 },
+  { value: 'high', label: 'High-touch', description: '0.5 hrs/user/mo', hoursPerUser: 0.5 },
+] as const;
+
 // Azure Retail Prices API
 export const AZURE_PRICES_API_URL = 'https://prices.azure.com/api/retail/prices';

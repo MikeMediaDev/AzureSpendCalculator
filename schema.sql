@@ -25,6 +25,9 @@ CREATE TABLE IF NOT EXISTS scenarios (
     workload_type VARCHAR(50) NOT NULL,
     anf_service_level VARCHAR(50) NOT NULL,
     reservation_term VARCHAR(50) NOT NULL,
+    isv_charge DECIMAL(10, 2) DEFAULT 0,
+    support_level VARCHAR(20) DEFAULT 'low',
+    support_hourly_rate DECIMAL(10, 2) DEFAULT 0,
     calculation_result JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

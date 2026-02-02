@@ -6,13 +6,16 @@ import Calculator from '@/components/Calculator';
 import ResultsTable from '@/components/ResultsTable';
 import ProfitAnalysis from '@/components/ProfitAnalysis';
 import ExportButton from '@/components/ExportButton';
-import type { CalculationResult, CalculatorInput } from '@/types';
+import type { CalculationResult, CalculatorInput, SupportLevel } from '@/types';
+import { SUPPORT_LEVELS } from '@/lib/constants';
 
 export default function Home() {
   const router = useRouter();
   const [result, setResult] = useState<CalculationResult | null>(null);
   const [input, setInput] = useState<CalculatorInput | null>(null);
   const [isvCharge, setIsvCharge] = useState(0);
+  const [supportLevel, setSupportLevel] = useState<SupportLevel>('low');
+  const [supportHourlyRate, setSupportHourlyRate] = useState(0);
   const [saving, setSaving] = useState(false);
   const [scenarioName, setScenarioName] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -53,6 +56,9 @@ export default function Home() {
         body: JSON.stringify({
           name: scenarioName.trim(),
           ...input,
+          isvCharge,
+          supportLevel,
+          supportHourlyRate,
           calculationResult: result,
         }),
       });
@@ -72,7 +78,7 @@ export default function Home() {
     <div className="space-y-8">
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Azure Cost Calculator</h1>
+          <h1 className="text-3xl font-bold text-gray-900">ISV Calculator</h1>
           <p className="mt-2 text-gray-600">
             Calculate costs for Windows Server VMs with user profile storage on Azure NetApp Files.
           </p>
@@ -91,7 +97,15 @@ export default function Home() {
         </div>
       )}
 
-      <Calculator onCalculate={handleCalculate} isvCharge={isvCharge} onIsvChargeChange={setIsvCharge} />
+      <Calculator
+        onCalculate={handleCalculate}
+        isvCharge={isvCharge}
+        onIsvChargeChange={setIsvCharge}
+        supportLevel={supportLevel}
+        onSupportLevelChange={setSupportLevel}
+        supportHourlyRate={supportHourlyRate}
+        onSupportHourlyRateChange={setSupportHourlyRate}
+      />
 
       {result && input && (
         <div className="space-y-4">
@@ -110,11 +124,13 @@ export default function Home() {
 
           <ResultsTable result={result} concurrentUsers={input.concurrentUsers} />
 
-          {isvCharge > 0 && (
+          {(isvCharge > 0 || supportHourlyRate > 0) && (
             <ProfitAnalysis
               isvCharge={isvCharge}
               concurrentUsers={input.concurrentUsers}
               totalMonthlyCost={result.totalMonthly}
+              supportHoursPerUser={SUPPORT_LEVELS.find(s => s.value === supportLevel)?.hoursPerUser || 0}
+              supportHourlyRate={supportHourlyRate}
             />
           )}
         </div>

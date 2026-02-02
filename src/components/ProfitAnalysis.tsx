@@ -4,6 +4,8 @@ interface ProfitAnalysisProps {
   isvCharge: number;
   concurrentUsers: number;
   totalMonthlyCost: number;
+  supportHoursPerUser: number;
+  supportHourlyRate: number;
 }
 
 function formatCurrency(value: number): string {
@@ -15,9 +17,12 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
-export default function ProfitAnalysis({ isvCharge, concurrentUsers, totalMonthlyCost }: ProfitAnalysisProps) {
+export default function ProfitAnalysis({ isvCharge, concurrentUsers, totalMonthlyCost, supportHoursPerUser, supportHourlyRate }: ProfitAnalysisProps) {
   const totalRevenue = isvCharge * concurrentUsers;
-  const grossProfit = totalRevenue - totalMonthlyCost;
+  const totalSupportHours = concurrentUsers * supportHoursPerUser;
+  const supportCost = totalSupportHours * supportHourlyRate;
+  const totalCosts = totalMonthlyCost + supportCost;
+  const grossProfit = totalRevenue - totalCosts;
   const profitMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
 
   return (
@@ -54,7 +59,7 @@ export default function ProfitAnalysis({ isvCharge, concurrentUsers, totalMonthl
           </tr>
           <tr>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-              Total Monthly Cost
+              Azure Infrastructure Cost
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
               From cost breakdown
@@ -63,6 +68,31 @@ export default function ProfitAnalysis({ isvCharge, concurrentUsers, totalMonthl
               ({formatCurrency(totalMonthlyCost)})
             </td>
           </tr>
+          {supportCost > 0 && (
+            <tr>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                Support Cost
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                {totalSupportHours.toFixed(1)} hrs x {formatCurrency(supportHourlyRate)}/hr
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right font-medium">
+                ({formatCurrency(supportCost)})
+              </td>
+            </tr>
+          )}
+          {supportCost > 0 && (
+            <tr className="bg-gray-50">
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                Total Costs
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right font-medium">
+                ({formatCurrency(totalCosts)})
+              </td>
+            </tr>
+          )}
         </tbody>
         <tfoot className="bg-gray-50">
           <tr>

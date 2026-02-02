@@ -15,7 +15,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Azure Spend Calculator",
+  title: "ISVHost on Azure",
   description: "Calculate Azure costs for Windows Server VMs with Azure NetApp Files",
 };
 
@@ -34,7 +34,7 @@ export default function RootLayout({
             <div className="flex justify-between h-16">
               <div className="flex items-center">
                 <Link href="/" className="text-xl font-bold text-blue-600">
-                  Azure Spend Calculator
+                  ISVHost on Azure
                 </Link>
               </div>
               <div className="flex items-center space-x-4">
