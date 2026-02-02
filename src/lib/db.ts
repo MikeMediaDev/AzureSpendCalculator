@@ -1,14 +1,13 @@
 import { Pool } from 'pg';
 import type { AzurePrice, Scenario, ScenarioCreateInput, ScenarioUpdateInput, CalculationResult } from '@/types';
 
-const connectionString = process.env.DATABASE_URL || process.env.DATABASE_SUPABASE_URL;
+const connectionString = process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/postgres';
 
 const pool = new Pool({
   connectionString,
-  ssl: { rejectUnauthorized: false },
-  connectionTimeoutMillis: 30000,
-  idleTimeoutMillis: 10000,
-  max: 3,
+  ssl: connectionString?.includes('supabase') || connectionString?.includes('pooler')
+    ? { rejectUnauthorized: false }
+    : undefined,
 });
 
 // Test database connection
