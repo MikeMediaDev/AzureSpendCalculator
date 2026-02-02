@@ -1,13 +1,20 @@
 import { Pool } from 'pg';
 import type { AzurePrice, Scenario, ScenarioCreateInput, ScenarioUpdateInput, CalculationResult } from '@/types';
 
-const connectionString = process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/postgres';
+let connectionString = process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/postgres';
 
 // Use SSL for cloud databases (Supabase, Vercel Postgres, etc.)
 const isCloudDb = !!(process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING) ||
   connectionString?.includes('supabase') ||
   connectionString?.includes('pooler') ||
   connectionString?.includes('neon');
+
+// Add libpq compatibility for newer pg versions with sslmode=require
+if (isCloudDb && connectionString.includes('sslmode=') && !connectionString.includes('uselibpqcompat')) {
+  connectionString = connectionString.includes('?')
+    ? `${connectionString}&uselibpqcompat=true`
+    : `${connectionString}?uselibpqcompat=true`;
+}
 
 const pool = new Pool({
   connectionString,
