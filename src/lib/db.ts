@@ -5,10 +5,22 @@ const connectionString = process.env.DATABASE_URL || process.env.DATABASE_SUPABA
 
 const pool = new Pool({
   connectionString,
-  connectionTimeoutMillis: 60000,
-  idleTimeoutMillis: 30000,
-  max: 5,
+  ssl: { rejectUnauthorized: false },
+  connectionTimeoutMillis: 30000,
+  idleTimeoutMillis: 10000,
+  max: 3,
 });
+
+// Test database connection
+export async function testConnection(): Promise<boolean> {
+  try {
+    const result = await pool.query('SELECT 1 as test');
+    return result.rows[0]?.test === 1;
+  } catch (error) {
+    console.error('Database connection test failed:', error);
+    return false;
+  }
+}
 
 // Azure Prices
 

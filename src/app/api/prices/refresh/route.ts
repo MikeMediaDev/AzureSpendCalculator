@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { refreshAllPrices } from '@/lib/azure-prices';
+import { testConnection } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // Allow up to 60 seconds for price refresh
@@ -8,6 +9,18 @@ export async function POST() {
   console.log('Starting price refresh...');
   console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
   console.log('DATABASE_SUPABASE_URL exists:', !!process.env.DATABASE_SUPABASE_URL);
+
+  // Test database connection first
+  console.log('Testing database connection...');
+  const dbConnected = await testConnection();
+  console.log('Database connection test:', dbConnected ? 'SUCCESS' : 'FAILED');
+
+  if (!dbConnected) {
+    return NextResponse.json({
+      error: 'Database connection failed',
+      details: 'Could not connect to database'
+    }, { status: 500 });
+  }
 
   try {
     const result = await refreshAllPrices();

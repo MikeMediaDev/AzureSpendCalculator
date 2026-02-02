@@ -159,8 +159,8 @@ export async function refreshAllPrices(): Promise<{ total: number; regions: stri
 
   // Batch insert all prices at once
   if (allPrices.length > 0) {
-    // Insert in chunks to avoid query size limits
-    const chunkSize = 100;
+    // Insert in smaller chunks to avoid timeout
+    const chunkSize = 25;
     for (let i = 0; i < allPrices.length; i += chunkSize) {
       const chunk = allPrices.slice(i, i + chunkSize);
       console.log(`Inserting chunk ${Math.floor(i / chunkSize) + 1}/${Math.ceil(allPrices.length / chunkSize)}`);
