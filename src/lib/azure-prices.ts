@@ -129,13 +129,18 @@ export async function refreshAllPrices(): Promise<{ total: number; regions: stri
   const allPrices: PriceData[] = [];
   const successfulRegions: string[] = [];
 
+  console.log(`Fetching prices for ${US_REGIONS.length} regions...`);
+
   // Fetch all regions in parallel (limit concurrency to 3 to avoid rate limits)
   const batchSize = 3;
   for (let i = 0; i < US_REGIONS.length; i += batchSize) {
     const batch = US_REGIONS.slice(i, i + batchSize);
+    console.log(`Fetching batch: ${batch.map(r => r.value).join(', ')}`);
+
     const results = await Promise.allSettled(
       batch.map(async (region) => {
         const prices = await fetchRegionPrices(region.value);
+        console.log(`Fetched ${prices.length} prices for ${region.value}`);
         return { region: region.value, prices };
       })
     );
@@ -150,15 +155,19 @@ export async function refreshAllPrices(): Promise<{ total: number; regions: stri
     }
   }
 
+  console.log(`Total prices fetched: ${allPrices.length}. Starting database insert...`);
+
   // Batch insert all prices at once
   if (allPrices.length > 0) {
     // Insert in chunks to avoid query size limits
     const chunkSize = 100;
     for (let i = 0; i < allPrices.length; i += chunkSize) {
       const chunk = allPrices.slice(i, i + chunkSize);
+      console.log(`Inserting chunk ${Math.floor(i / chunkSize) + 1}/${Math.ceil(allPrices.length / chunkSize)}`);
       await upsertPricesBatch(chunk);
     }
   }
 
+  console.log('Database insert complete');
   return { total: allPrices.length, regions: successfulRegions };
 }
