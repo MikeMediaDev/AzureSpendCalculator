@@ -1,5 +1,6 @@
 import { AZURE_PRICES_API_URL, US_REGIONS, VM_SKU, DC_VM_SKU, DISK_SKU, DISK_METER_NAME } from './constants';
-import { upsertPrice } from './db';
+import { upsertPricesBatch } from './db';
+import type { AzurePrice } from '@/types';
 
 interface AzurePriceApiItem {
   skuName: string;
@@ -36,121 +37,71 @@ async function fetchAzurePrices(filter: string): Promise<AzurePriceApiItem[]> {
   return items;
 }
 
-export async function refreshVmPrices(region: string): Promise<number> {
-  // Fetch all pricing tiers (pay-as-you-go, 1-year, 3-year) for the configured VM SKU
+type PriceData = Omit<AzurePrice, 'id' | 'fetchedAt'>;
+
+function collectVmPrices(items: AzurePriceApiItem[], skuDefault: string): PriceData[] {
+  const prices: PriceData[] = [];
+
+  for (const item of items) {
+    // Skip Windows prices - we use Hybrid Benefit
+    if (item.productName.includes('Windows')) continue;
+    // Skip Spot pricing
+    if (item.skuName.includes('Spot') || item.meterName.includes('Spot')) continue;
+    // Only include Consumption (pay-as-you-go) and Reservation pricing
+    if (item.type !== 'Consumption' && item.type !== 'Reservation') continue;
+
+    prices.push({
+      skuName: item.armSkuName || skuDefault,
+      serviceName: item.serviceName,
+      productName: item.productName,
+      meterName: item.meterName,
+      region: item.armRegionName,
+      unitPrice: item.retailPrice,
+      unitOfMeasure: item.unitOfMeasure,
+      reservationTerm: item.reservationTerm,
+      priceType: item.type,
+    });
+  }
+
+  return prices;
+}
+
+export async function refreshVmPrices(region: string): Promise<PriceData[]> {
   const filter = `serviceName eq 'Virtual Machines' and armSkuName eq '${VM_SKU}' and armRegionName eq '${region}'`;
-
   const items = await fetchAzurePrices(filter);
-  let count = 0;
-
-  for (const item of items) {
-    // Skip Windows prices - we use Hybrid Benefit
-    if (item.productName.includes('Windows')) {
-      continue;
-    }
-    // Skip Spot pricing
-    if (item.skuName.includes('Spot') || item.meterName.includes('Spot')) {
-      continue;
-    }
-    // Only include Consumption (pay-as-you-go) and Reservation pricing
-    if (item.type !== 'Consumption' && item.type !== 'Reservation') {
-      continue;
-    }
-
-    await upsertPrice({
-      skuName: item.armSkuName || VM_SKU,
-      serviceName: item.serviceName,
-      productName: item.productName,
-      meterName: item.meterName,
-      region: item.armRegionName,
-      unitPrice: item.retailPrice,
-      unitOfMeasure: item.unitOfMeasure,
-      reservationTerm: item.reservationTerm,
-      priceType: item.type,
-    });
-    count++;
-  }
-
-  return count;
+  return collectVmPrices(items, VM_SKU);
 }
 
-export async function refreshDcVmPrices(region: string): Promise<number> {
-  // Fetch all pricing tiers for Domain Controllers (D2as v7)
+export async function refreshDcVmPrices(region: string): Promise<PriceData[]> {
   const filter = `serviceName eq 'Virtual Machines' and armSkuName eq '${DC_VM_SKU}' and armRegionName eq '${region}'`;
-
   const items = await fetchAzurePrices(filter);
-  let count = 0;
-
-  for (const item of items) {
-    // Skip Windows prices - we use Hybrid Benefit
-    if (item.productName.includes('Windows')) {
-      continue;
-    }
-    // Skip Spot pricing
-    if (item.skuName.includes('Spot') || item.meterName.includes('Spot')) {
-      continue;
-    }
-    // Only include Consumption (pay-as-you-go) and Reservation pricing
-    if (item.type !== 'Consumption' && item.type !== 'Reservation') {
-      continue;
-    }
-
-    await upsertPrice({
-      skuName: item.armSkuName || DC_VM_SKU,
-      serviceName: item.serviceName,
-      productName: item.productName,
-      meterName: item.meterName,
-      region: item.armRegionName,
-      unitPrice: item.retailPrice,
-      unitOfMeasure: item.unitOfMeasure,
-      reservationTerm: item.reservationTerm,
-      priceType: item.type,
-    });
-    count++;
-  }
-
-  return count;
+  return collectVmPrices(items, DC_VM_SKU);
 }
 
-export async function refreshDiskPrices(region: string): Promise<number> {
-  // Fetch managed disk prices for E10 LRS (128GB Standard SSD)
+export async function refreshDiskPrices(region: string): Promise<PriceData[]> {
   const filter = `serviceName eq 'Storage' and armRegionName eq '${region}' and meterName eq '${DISK_METER_NAME}'`;
-
   const items = await fetchAzurePrices(filter);
-  let count = 0;
 
-  for (const item of items) {
-    await upsertPrice({
-      skuName: DISK_SKU, // Use constant for consistent lookup
-      serviceName: item.serviceName,
-      productName: item.productName,
-      meterName: item.meterName,
-      region: item.armRegionName,
-      unitPrice: item.retailPrice,
-      unitOfMeasure: item.unitOfMeasure,
-      reservationTerm: null,
-      priceType: 'Consumption',
-    });
-    count++;
-  }
-
-  return count;
+  return items.map(item => ({
+    skuName: DISK_SKU,
+    serviceName: item.serviceName,
+    productName: item.productName,
+    meterName: item.meterName,
+    region: item.armRegionName,
+    unitPrice: item.retailPrice,
+    unitOfMeasure: item.unitOfMeasure,
+    reservationTerm: null,
+    priceType: 'Consumption',
+  }));
 }
 
-export async function refreshAnfPrices(region: string): Promise<number> {
-  // Fetch Azure NetApp Files prices
+export async function refreshAnfPrices(region: string): Promise<PriceData[]> {
   const filter = `serviceName eq 'Azure NetApp Files' and armRegionName eq '${region}'`;
-
   const items = await fetchAzurePrices(filter);
-  let count = 0;
 
-  for (const item of items) {
-    // Only capture Standard and Premium capacity prices
-    if (!item.meterName.includes('Capacity')) {
-      continue;
-    }
-
-    await upsertPrice({
+  return items
+    .filter(item => item.meterName.includes('Capacity'))
+    .map(item => ({
       skuName: item.meterName,
       serviceName: item.serviceName,
       productName: item.productName,
@@ -160,30 +111,54 @@ export async function refreshAnfPrices(region: string): Promise<number> {
       unitOfMeasure: item.unitOfMeasure,
       reservationTerm: null,
       priceType: 'Consumption',
-    });
-    count++;
-  }
+    }));
+}
 
-  return count;
+async function fetchRegionPrices(region: string): Promise<PriceData[]> {
+  const [vmPrices, dcVmPrices, diskPrices, anfPrices] = await Promise.all([
+    refreshVmPrices(region),
+    refreshDcVmPrices(region),
+    refreshDiskPrices(region),
+    refreshAnfPrices(region),
+  ]);
+
+  return [...vmPrices, ...dcVmPrices, ...diskPrices, ...anfPrices];
 }
 
 export async function refreshAllPrices(): Promise<{ total: number; regions: string[] }> {
-  let total = 0;
-  const regions: string[] = [];
+  const allPrices: PriceData[] = [];
+  const successfulRegions: string[] = [];
 
-  for (const region of US_REGIONS) {
-    try {
-      const vmCount = await refreshVmPrices(region.value);
-      const dcVmCount = await refreshDcVmPrices(region.value);
-      const diskCount = await refreshDiskPrices(region.value);
-      const anfCount = await refreshAnfPrices(region.value);
+  // Fetch all regions in parallel (limit concurrency to 3 to avoid rate limits)
+  const batchSize = 3;
+  for (let i = 0; i < US_REGIONS.length; i += batchSize) {
+    const batch = US_REGIONS.slice(i, i + batchSize);
+    const results = await Promise.allSettled(
+      batch.map(async (region) => {
+        const prices = await fetchRegionPrices(region.value);
+        return { region: region.value, prices };
+      })
+    );
 
-      total += vmCount + dcVmCount + diskCount + anfCount;
-      regions.push(region.value);
-    } catch (error) {
-      console.error(`Failed to refresh prices for ${region.value}:`, error);
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        allPrices.push(...result.value.prices);
+        successfulRegions.push(result.value.region);
+      } else {
+        console.error('Failed to fetch region prices:', result.reason);
+      }
     }
   }
 
-  return { total, regions };
+  // Batch insert all prices at once
+  if (allPrices.length > 0) {
+    // Insert in chunks to avoid query size limits
+    const chunkSize = 100;
+    for (let i = 0; i < allPrices.length; i += chunkSize) {
+      const chunk = allPrices.slice(i, i + chunkSize);
+      await upsertPricesBatch(chunk);
+    }
+  }
+
+  return { total: allPrices.length, regions: successfulRegions };
 }

@@ -32,6 +32,45 @@ export async function upsertPrice(price: Omit<AzurePrice, 'id' | 'fetchedAt'>): 
   );
 }
 
+export async function upsertPricesBatch(prices: Omit<AzurePrice, 'id' | 'fetchedAt'>[]): Promise<void> {
+  if (prices.length === 0) return;
+
+  // Build batch insert with multiple value sets
+  const values: (string | number | null)[] = [];
+  const valuePlaceholders: string[] = [];
+
+  prices.forEach((price, index) => {
+    const offset = index * 9;
+    valuePlaceholders.push(
+      `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, NOW())`
+    );
+    values.push(
+      price.skuName,
+      price.serviceName,
+      price.productName,
+      price.meterName,
+      price.region,
+      price.unitPrice,
+      price.unitOfMeasure,
+      price.reservationTerm,
+      price.priceType
+    );
+  });
+
+  await pool.query(
+    `INSERT INTO azure_prices (sku_name, service_name, product_name, meter_name, region, unit_price, unit_of_measure, reservation_term, price_type, fetched_at)
+     VALUES ${valuePlaceholders.join(', ')}
+     ON CONFLICT (sku_name, region, reservation_term, price_type)
+     DO UPDATE SET
+       unit_price = EXCLUDED.unit_price,
+       product_name = EXCLUDED.product_name,
+       meter_name = EXCLUDED.meter_name,
+       unit_of_measure = EXCLUDED.unit_of_measure,
+       fetched_at = EXCLUDED.fetched_at`,
+    values
+  );
+}
+
 export async function getPrice(
   skuName: string,
   region: string,
