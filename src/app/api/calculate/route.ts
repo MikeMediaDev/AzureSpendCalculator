@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { calculate } from '@/lib/calculator';
+import { MIN_CONCURRENT_USERS } from '@/lib/constants';
 import type { CalculatorInput, WorkloadType, AnfServiceLevel, ReservationTerm } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -15,8 +16,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid region' }, { status: 400 });
     }
 
-    if (!concurrentUsers || typeof concurrentUsers !== 'number' || concurrentUsers < 1) {
-      return NextResponse.json({ error: 'Invalid concurrent users' }, { status: 400 });
+    if (!concurrentUsers || typeof concurrentUsers !== 'number' || concurrentUsers < MIN_CONCURRENT_USERS) {
+      return NextResponse.json({ error: `Concurrent users must be at least ${MIN_CONCURRENT_USERS}` }, { status: 400 });
     }
 
     if (!['light', 'medium', 'heavy'].includes(workloadType)) {

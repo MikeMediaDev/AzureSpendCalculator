@@ -7,6 +7,10 @@ import {
   DC_VM_VCPUS,
   DC_VM_NAME,
   DC_COUNT,
+  FM_VM_SKU,
+  FM_VM_VCPUS,
+  FM_VM_NAME,
+  FM_COUNT,
   DISK_SKU,
   DISK_NAME,
   VCPU_PER_USER,
@@ -16,6 +20,8 @@ import {
   WINDOWS_LICENSE_PRICE_PER_8_CORES,
   WINDOWS_LICENSE_CORE_PACK,
   HOURS_PER_MONTH,
+  GO_GLOBAL_PRICING_TIERS,
+  MIN_CONCURRENT_USERS,
 } from './constants';
 import { getPrice } from './db';
 
@@ -24,6 +30,14 @@ interface PriceData {
   dcVmMonthlyPrice: number;
   diskMonthlyPrice: number;
   anfPricePerTiBMonth: number;
+}
+
+// Get GO-Global price per user based on tiered pricing
+function getGoGlobalPricePerUser(userCount: number): number {
+  const tier = GO_GLOBAL_PRICING_TIERS.find(
+    t => userCount >= t.minUsers && userCount <= t.maxUsers
+  );
+  return tier?.pricePerUser ?? GO_GLOBAL_PRICING_TIERS[0].pricePerUser;
 }
 
 async function fetchPrices(region: string, anfServiceLevel: AnfServiceLevel, reservationTerm: ReservationTerm): Promise<PriceData> {
@@ -101,17 +115,17 @@ export async function calculate(input: CalculatorInput): Promise<CalculationResu
   // Build line items
   const lineItems: LineItem[] = [];
 
-  // VMs
+  // Session Host VMs
   const vmTotalMonthly = vmCount * prices.vmMonthlyPrice;
   lineItems.push({
-    name: `${VM_NAME} VM (${reservationLabel}, Hybrid Benefit)`,
+    name: `${VM_NAME} Session Host (${reservationLabel}, Hybrid Benefit)`,
     sku: VM_SKU,
     quantity: vmCount,
     unitPrice: prices.vmMonthlyPrice,
     monthlyPrice: vmTotalMonthly,
   });
 
-  // Disks (one per VM)
+  // Session Host Disks
   const diskTotalMonthly = vmCount * prices.diskMonthlyPrice;
   lineItems.push({
     name: `${DISK_NAME} Managed Disk (Session Hosts)`,
@@ -121,19 +135,7 @@ export async function calculate(input: CalculatorInput): Promise<CalculationResu
     monthlyPrice: diskTotalMonthly,
   });
 
-  // Windows Server 2022 License for Session Hosts (per 8 cores, minimum 8 cores per server)
-  const licenseUnitsPerVm = Math.max(1, Math.ceil(VM_VCPUS / WINDOWS_LICENSE_CORE_PACK));
-  const windowsLicenseUnitPrice = licenseUnitsPerVm * WINDOWS_LICENSE_PRICE_PER_8_CORES;
-  const windowsLicenseTotalMonthly = vmCount * windowsLicenseUnitPrice;
-  lineItems.push({
-    name: 'Windows Server 2022 License (Session Hosts)',
-    sku: 'WIN-SVR-2022',
-    quantity: vmCount,
-    unitPrice: windowsLicenseUnitPrice,
-    monthlyPrice: windowsLicenseTotalMonthly,
-  });
-
-  // Domain Controllers (2x D2as v7 VMs)
+  // Domain Controllers
   const dcVmTotalMonthly = DC_COUNT * prices.dcVmMonthlyPrice;
   lineItems.push({
     name: `${DC_VM_NAME} Domain Controller (${reservationLabel}, Hybrid Benefit)`,
@@ -143,7 +145,7 @@ export async function calculate(input: CalculatorInput): Promise<CalculationResu
     monthlyPrice: dcVmTotalMonthly,
   });
 
-  // Domain Controller Disks (one E10 per DC)
+  // Domain Controller Disks
   const dcDiskTotalMonthly = DC_COUNT * prices.diskMonthlyPrice;
   lineItems.push({
     name: `${DISK_NAME} Managed Disk (Domain Controllers)`,
@@ -153,16 +155,39 @@ export async function calculate(input: CalculatorInput): Promise<CalculationResu
     monthlyPrice: dcDiskTotalMonthly,
   });
 
-  // Windows Server 2022 License for Domain Controllers
-  const dcLicenseUnitsPerVm = Math.max(1, Math.ceil(DC_VM_VCPUS / WINDOWS_LICENSE_CORE_PACK));
-  const dcWindowsLicenseUnitPrice = dcLicenseUnitsPerVm * WINDOWS_LICENSE_PRICE_PER_8_CORES;
-  const dcWindowsLicenseTotalMonthly = DC_COUNT * dcWindowsLicenseUnitPrice;
+  // Farm Managers
+  const fmVmTotalMonthly = FM_COUNT * prices.dcVmMonthlyPrice;
   lineItems.push({
-    name: 'Windows Server 2022 License (Domain Controllers)',
-    sku: 'WIN-SVR-2022-DC',
-    quantity: DC_COUNT,
-    unitPrice: dcWindowsLicenseUnitPrice,
-    monthlyPrice: dcWindowsLicenseTotalMonthly,
+    name: `${FM_VM_NAME} Farm Manager (${reservationLabel}, Hybrid Benefit)`,
+    sku: FM_VM_SKU,
+    quantity: FM_COUNT,
+    unitPrice: prices.dcVmMonthlyPrice,
+    monthlyPrice: fmVmTotalMonthly,
+  });
+
+  // Farm Manager Disks
+  const fmDiskTotalMonthly = FM_COUNT * prices.diskMonthlyPrice;
+  lineItems.push({
+    name: `${DISK_NAME} Managed Disk (Farm Managers)`,
+    sku: DISK_SKU,
+    quantity: FM_COUNT,
+    unitPrice: prices.diskMonthlyPrice,
+    monthlyPrice: fmDiskTotalMonthly,
+  });
+
+  // Windows Server 2022 License (consolidated for all VMs)
+  // Calculate license units per VM type (minimum 8 cores per server)
+  const sessionHostLicenseUnits = vmCount * Math.max(1, Math.ceil(VM_VCPUS / WINDOWS_LICENSE_CORE_PACK));
+  const dcLicenseUnits = DC_COUNT * Math.max(1, Math.ceil(DC_VM_VCPUS / WINDOWS_LICENSE_CORE_PACK));
+  const fmLicenseUnits = FM_COUNT * Math.max(1, Math.ceil(FM_VM_VCPUS / WINDOWS_LICENSE_CORE_PACK));
+  const totalLicenseUnits = sessionHostLicenseUnits + dcLicenseUnits + fmLicenseUnits;
+  const windowsLicenseTotalMonthly = totalLicenseUnits * WINDOWS_LICENSE_PRICE_PER_8_CORES;
+  lineItems.push({
+    name: 'Windows Server 2022 License',
+    sku: 'WIN-SVR-2022',
+    quantity: totalLicenseUnits,
+    unitPrice: WINDOWS_LICENSE_PRICE_PER_8_CORES,
+    monthlyPrice: windowsLicenseTotalMonthly,
   });
 
   // ANF
@@ -173,6 +198,17 @@ export async function calculate(input: CalculatorInput): Promise<CalculationResu
     quantity: anfCapacityTiB,
     unitPrice: prices.anfPricePerTiBMonth,
     monthlyPrice: anfTotalMonthly,
+  });
+
+  // GO-Global Licenses (tiered pricing based on concurrent users)
+  const goGlobalPricePerUser = getGoGlobalPricePerUser(concurrentUsers);
+  const goGlobalTotalMonthly = concurrentUsers * goGlobalPricePerUser;
+  lineItems.push({
+    name: 'GO-Global Licenses',
+    sku: 'GO-GLOBAL',
+    quantity: concurrentUsers,
+    unitPrice: goGlobalPricePerUser,
+    monthlyPrice: goGlobalTotalMonthly,
   });
 
   const totalMonthly = lineItems.reduce((sum, item) => sum + item.monthlyPrice, 0);
@@ -211,17 +247,17 @@ export function calculateWithPrices(
   // Build line items
   const lineItems: LineItem[] = [];
 
-  // VMs
+  // Session Host VMs
   const vmTotalMonthly = vmCount * prices.vmMonthlyPrice;
   lineItems.push({
-    name: `${VM_NAME} VM (${reservationLabel}, Hybrid Benefit)`,
+    name: `${VM_NAME} Session Host (${reservationLabel}, Hybrid Benefit)`,
     sku: VM_SKU,
     quantity: vmCount,
     unitPrice: prices.vmMonthlyPrice,
     monthlyPrice: vmTotalMonthly,
   });
 
-  // Disks
+  // Session Host Disks
   const diskTotalMonthly = vmCount * prices.diskMonthlyPrice;
   lineItems.push({
     name: `${DISK_NAME} Managed Disk (Session Hosts)`,
@@ -231,19 +267,7 @@ export function calculateWithPrices(
     monthlyPrice: diskTotalMonthly,
   });
 
-  // Windows Server 2022 License for Session Hosts (per 8 cores, minimum 8 cores per server)
-  const licenseUnitsPerVm = Math.max(1, Math.ceil(VM_VCPUS / WINDOWS_LICENSE_CORE_PACK));
-  const windowsLicenseUnitPrice = licenseUnitsPerVm * WINDOWS_LICENSE_PRICE_PER_8_CORES;
-  const windowsLicenseTotalMonthly = vmCount * windowsLicenseUnitPrice;
-  lineItems.push({
-    name: 'Windows Server 2022 License (Session Hosts)',
-    sku: 'WIN-SVR-2022',
-    quantity: vmCount,
-    unitPrice: windowsLicenseUnitPrice,
-    monthlyPrice: windowsLicenseTotalMonthly,
-  });
-
-  // Domain Controllers (2x D2as v7 VMs)
+  // Domain Controllers
   const dcVmTotalMonthly = DC_COUNT * prices.dcVmMonthlyPrice;
   lineItems.push({
     name: `${DC_VM_NAME} Domain Controller (${reservationLabel}, Hybrid Benefit)`,
@@ -253,7 +277,7 @@ export function calculateWithPrices(
     monthlyPrice: dcVmTotalMonthly,
   });
 
-  // Domain Controller Disks (one E10 per DC)
+  // Domain Controller Disks
   const dcDiskTotalMonthly = DC_COUNT * prices.diskMonthlyPrice;
   lineItems.push({
     name: `${DISK_NAME} Managed Disk (Domain Controllers)`,
@@ -263,16 +287,39 @@ export function calculateWithPrices(
     monthlyPrice: dcDiskTotalMonthly,
   });
 
-  // Windows Server 2022 License for Domain Controllers
-  const dcLicenseUnitsPerVm = Math.max(1, Math.ceil(DC_VM_VCPUS / WINDOWS_LICENSE_CORE_PACK));
-  const dcWindowsLicenseUnitPrice = dcLicenseUnitsPerVm * WINDOWS_LICENSE_PRICE_PER_8_CORES;
-  const dcWindowsLicenseTotalMonthly = DC_COUNT * dcWindowsLicenseUnitPrice;
+  // Farm Managers
+  const fmVmTotalMonthly = FM_COUNT * prices.dcVmMonthlyPrice;
   lineItems.push({
-    name: 'Windows Server 2022 License (Domain Controllers)',
-    sku: 'WIN-SVR-2022-DC',
-    quantity: DC_COUNT,
-    unitPrice: dcWindowsLicenseUnitPrice,
-    monthlyPrice: dcWindowsLicenseTotalMonthly,
+    name: `${FM_VM_NAME} Farm Manager (${reservationLabel}, Hybrid Benefit)`,
+    sku: FM_VM_SKU,
+    quantity: FM_COUNT,
+    unitPrice: prices.dcVmMonthlyPrice,
+    monthlyPrice: fmVmTotalMonthly,
+  });
+
+  // Farm Manager Disks
+  const fmDiskTotalMonthly = FM_COUNT * prices.diskMonthlyPrice;
+  lineItems.push({
+    name: `${DISK_NAME} Managed Disk (Farm Managers)`,
+    sku: DISK_SKU,
+    quantity: FM_COUNT,
+    unitPrice: prices.diskMonthlyPrice,
+    monthlyPrice: fmDiskTotalMonthly,
+  });
+
+  // Windows Server 2022 License (consolidated for all VMs)
+  // Calculate license units per VM type (minimum 8 cores per server)
+  const sessionHostLicenseUnits = vmCount * Math.max(1, Math.ceil(VM_VCPUS / WINDOWS_LICENSE_CORE_PACK));
+  const dcLicenseUnits = DC_COUNT * Math.max(1, Math.ceil(DC_VM_VCPUS / WINDOWS_LICENSE_CORE_PACK));
+  const fmLicenseUnits = FM_COUNT * Math.max(1, Math.ceil(FM_VM_VCPUS / WINDOWS_LICENSE_CORE_PACK));
+  const totalLicenseUnits = sessionHostLicenseUnits + dcLicenseUnits + fmLicenseUnits;
+  const windowsLicenseTotalMonthly = totalLicenseUnits * WINDOWS_LICENSE_PRICE_PER_8_CORES;
+  lineItems.push({
+    name: 'Windows Server 2022 License',
+    sku: 'WIN-SVR-2022',
+    quantity: totalLicenseUnits,
+    unitPrice: WINDOWS_LICENSE_PRICE_PER_8_CORES,
+    monthlyPrice: windowsLicenseTotalMonthly,
   });
 
   // ANF
@@ -283,6 +330,17 @@ export function calculateWithPrices(
     quantity: anfCapacityTiB,
     unitPrice: prices.anfPricePerTiBMonth,
     monthlyPrice: anfTotalMonthly,
+  });
+
+  // GO-Global Licenses (tiered pricing based on concurrent users)
+  const goGlobalPricePerUser = getGoGlobalPricePerUser(concurrentUsers);
+  const goGlobalTotalMonthly = concurrentUsers * goGlobalPricePerUser;
+  lineItems.push({
+    name: 'GO-Global Licenses',
+    sku: 'GO-GLOBAL',
+    quantity: concurrentUsers,
+    unitPrice: goGlobalPricePerUser,
+    monthlyPrice: goGlobalTotalMonthly,
   });
 
   const totalMonthly = lineItems.reduce((sum, item) => sum + item.monthlyPrice, 0);

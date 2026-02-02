@@ -121,7 +121,7 @@ export async function refreshDiskPrices(region: string): Promise<number> {
 
   for (const item of items) {
     await upsertPrice({
-      skuName: item.skuName || DISK_SKU,
+      skuName: DISK_SKU, // Use constant for consistent lookup
       serviceName: item.serviceName,
       productName: item.productName,
       meterName: item.meterName,

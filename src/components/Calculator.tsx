@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { US_REGIONS, WORKLOAD_TYPES, ANF_SERVICE_LEVELS, RESERVATION_TERMS } from '@/lib/constants';
+import { US_REGIONS, WORKLOAD_TYPES, ANF_SERVICE_LEVELS, RESERVATION_TERMS, MIN_CONCURRENT_USERS } from '@/lib/constants';
 import type { CalculatorInput, CalculationResult, WorkloadType, AnfServiceLevel, ReservationTerm } from '@/types';
 
 interface CalculatorProps {
@@ -12,7 +12,7 @@ interface CalculatorProps {
 
 export default function Calculator({ onCalculate, initialInput, isLoading }: CalculatorProps) {
   const [region, setRegion] = useState(initialInput?.region || 'eastus');
-  const [concurrentUsers, setConcurrentUsers] = useState(initialInput?.concurrentUsers || 100);
+  const [concurrentUsers, setConcurrentUsers] = useState(initialInput?.concurrentUsers || MIN_CONCURRENT_USERS);
   const [workloadType, setWorkloadType] = useState<WorkloadType>(initialInput?.workloadType || 'medium');
   const [anfServiceLevel, setAnfServiceLevel] = useState<AnfServiceLevel>(initialInput?.anfServiceLevel || 'Standard');
   const [reservationTerm, setReservationTerm] = useState<ReservationTerm>(initialInput?.reservationTerm || '3year');
@@ -79,14 +79,14 @@ export default function Calculator({ onCalculate, initialInput, isLoading }: Cal
 
         <div>
           <label htmlFor="users" className="block text-sm font-medium text-gray-700 mb-1">
-            Concurrent Users
+            Concurrent Users (min {MIN_CONCURRENT_USERS})
           </label>
           <input
             id="users"
             type="number"
-            min="1"
+            min={MIN_CONCURRENT_USERS}
             value={concurrentUsers}
-            onChange={(e) => setConcurrentUsers(parseInt(e.target.value, 10) || 1)}
+            onChange={(e) => setConcurrentUsers(Math.max(MIN_CONCURRENT_USERS, parseInt(e.target.value, 10) || MIN_CONCURRENT_USERS))}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={isLoading || calculating}
           />

@@ -1,5 +1,11 @@
 import type { WorkloadType, ReservationTerm } from '@/types';
 
+export type GoGlobalPricingTier = {
+  minUsers: number;
+  maxUsers: number;
+  pricePerUser: number;
+};
+
 export const US_REGIONS = [
   { value: 'eastus', label: 'East US' },
   { value: 'eastus2', label: 'East US 2' },
@@ -33,6 +39,12 @@ export const DC_VM_SKU = 'Standard_D2as_v7';
 export const DC_VM_VCPUS = 2;
 export const DC_VM_NAME = 'D2as v7';
 export const DC_COUNT = 2; // Fixed number of DCs per deployment
+
+// Farm Manager specifications (same specs as Domain Controllers)
+export const FM_VM_SKU = 'Standard_D2as_v7';
+export const FM_VM_VCPUS = 2;
+export const FM_VM_NAME = 'D2as v7';
+export const FM_COUNT = 2; // Fixed number of Farm Managers per deployment
 
 // Disk specifications (128GB Standard SSD)
 export const DISK_SKU = 'E10 LRS';
@@ -71,6 +83,19 @@ export const RESERVATION_TERM_API_VALUES: Record<ReservationTerm, { priceType: s
 
 // Hours per month (average)
 export const HOURS_PER_MONTH = 730;
+
+// GO-Global License pricing tiers (per user per month)
+export const GO_GLOBAL_PRICING_TIERS = [
+  { minUsers: 25, maxUsers: 99, pricePerUser: 4.20 },
+  { minUsers: 100, maxUsers: 499, pricePerUser: 3.85 },
+  { minUsers: 500, maxUsers: 999, pricePerUser: 3.55 },
+  { minUsers: 1000, maxUsers: 4999, pricePerUser: 3.25 },
+  { minUsers: 5000, maxUsers: 9999, pricePerUser: 3.00 },
+  { minUsers: 10000, maxUsers: Infinity, pricePerUser: 2.75 },
+] as const;
+
+// Minimum concurrent users
+export const MIN_CONCURRENT_USERS = 25;
 
 // Azure Retail Prices API
 export const AZURE_PRICES_API_URL = 'https://prices.azure.com/api/retail/prices';
