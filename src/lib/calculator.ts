@@ -21,7 +21,6 @@ import {
   WINDOWS_LICENSE_CORE_PACK,
   HOURS_PER_MONTH,
   GO_GLOBAL_PRICING_TIERS,
-  MIN_CONCURRENT_USERS,
 } from './constants';
 import { getPrice } from './db';
 
