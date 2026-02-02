@@ -203,8 +203,8 @@ export async function calculate(input: CalculatorInput): Promise<CalculationResu
   const goGlobalPricePerUser = getGoGlobalPricePerUser(concurrentUsers);
   const goGlobalTotalMonthly = concurrentUsers * goGlobalPricePerUser;
   lineItems.push({
-    name: 'GO-Global Licenses',
-    sku: 'GO-GLOBAL',
+    name: 'GG Licenses',
+    sku: 'GG',
     quantity: concurrentUsers,
     unitPrice: goGlobalPricePerUser,
     monthlyPrice: goGlobalTotalMonthly,
@@ -335,8 +335,8 @@ export function calculateWithPrices(
   const goGlobalPricePerUser = getGoGlobalPricePerUser(concurrentUsers);
   const goGlobalTotalMonthly = concurrentUsers * goGlobalPricePerUser;
   lineItems.push({
-    name: 'GO-Global Licenses',
-    sku: 'GO-GLOBAL',
+    name: 'GG Licenses',
+    sku: 'GG',
     quantity: concurrentUsers,
     unitPrice: goGlobalPricePerUser,
     monthlyPrice: goGlobalTotalMonthly,
