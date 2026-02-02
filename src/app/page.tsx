@@ -14,6 +14,26 @@ export default function Home() {
   const [saving, setSaving] = useState(false);
   const [scenarioName, setScenarioName] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshStatus, setRefreshStatus] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleRefreshPrices = async () => {
+    setRefreshing(true);
+    setRefreshStatus(null);
+    try {
+      const response = await fetch('/api/prices/refresh', { method: 'POST' });
+      const data = await response.json();
+      if (response.ok) {
+        setRefreshStatus({ success: true, message: data.message });
+      } else {
+        setRefreshStatus({ success: false, message: data.error || 'Failed to refresh prices' });
+      }
+    } catch {
+      setRefreshStatus({ success: false, message: 'Network error refreshing prices' });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleCalculate = (calcResult: CalculationResult, calcInput: CalculatorInput) => {
     setResult(calcResult);
@@ -48,12 +68,26 @@ export default function Home() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Azure Cost Calculator</h1>
-        <p className="mt-2 text-gray-600">
-          Calculate costs for Windows Server VMs with user profile storage on Azure NetApp Files.
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Azure Cost Calculator</h1>
+          <p className="mt-2 text-gray-600">
+            Calculate costs for Windows Server VMs with user profile storage on Azure NetApp Files.
+          </p>
+        </div>
+        <button
+          onClick={handleRefreshPrices}
+          disabled={refreshing}
+          className="inline-flex items-center px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50"
+        >
+          {refreshing ? 'Refreshing...' : 'Refresh Prices'}
+        </button>
       </div>
+      {refreshStatus && (
+        <div className={`p-3 rounded-md text-sm ${refreshStatus.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+          {refreshStatus.message}
+        </div>
+      )}
 
       <Calculator onCalculate={handleCalculate} />
 

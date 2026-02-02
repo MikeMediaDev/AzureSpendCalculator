@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { calculate } from '@/lib/calculator';
-import type { CalculatorInput, WorkloadType, AnfServiceLevel } from '@/types';
+import type { CalculatorInput, WorkloadType, AnfServiceLevel, ReservationTerm } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     // Validate input
-    const { region, concurrentUsers, workloadType, anfServiceLevel } = body;
+    const { region, concurrentUsers, workloadType, anfServiceLevel, reservationTerm } = body;
 
     if (!region || typeof region !== 'string') {
       return NextResponse.json({ error: 'Invalid region' }, { status: 400 });
@@ -27,11 +27,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid ANF service level' }, { status: 400 });
     }
 
+    // Default to 3-year if not specified
+    const validReservationTerms = ['payg', '1year', '3year'];
+    const selectedReservationTerm = validReservationTerms.includes(reservationTerm)
+      ? reservationTerm as ReservationTerm
+      : '3year';
+
     const input: CalculatorInput = {
       region,
       concurrentUsers,
       workloadType: workloadType as WorkloadType,
       anfServiceLevel: anfServiceLevel as AnfServiceLevel,
+      reservationTerm: selectedReservationTerm,
     };
 
     const result = await calculate(input);

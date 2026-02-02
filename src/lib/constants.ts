@@ -1,4 +1,4 @@
-import type { WorkloadType } from '@/types';
+import type { WorkloadType, ReservationTerm } from '@/types';
 
 export const US_REGIONS = [
   { value: 'eastus', label: 'East US' },
@@ -13,9 +13,9 @@ export const US_REGIONS = [
 ] as const;
 
 export const WORKLOAD_TYPES = [
-  { value: 'light', label: 'Light', description: '~26 users per VM' },
-  { value: 'medium', label: 'Medium', description: '~16 users per VM' },
-  { value: 'heavy', label: 'Heavy', description: '~8 users per VM' },
+  { value: 'light', label: 'Light', description: '~53 users per VM' },
+  { value: 'medium', label: 'Medium', description: '~32 users per VM' },
+  { value: 'heavy', label: 'Heavy', description: '~16 users per VM' },
 ] as const;
 
 export const ANF_SERVICE_LEVELS = [
@@ -23,29 +23,51 @@ export const ANF_SERVICE_LEVELS = [
   { value: 'Premium', label: 'Premium', description: '64 MiB/s per TiB' },
 ] as const;
 
-// VM specifications
-export const VM_SKU = 'Standard_D4as_v5';
-export const VM_VCPUS = 4;
-export const VM_NAME = 'D4as v5';
+// VM specifications (Session Hosts)
+export const VM_SKU = 'Standard_D8as_v7';
+export const VM_VCPUS = 8;
+export const VM_NAME = 'D8as v7';
 
-// Disk specifications
+// Domain Controller specifications
+export const DC_VM_SKU = 'Standard_D2as_v7';
+export const DC_VM_VCPUS = 2;
+export const DC_VM_NAME = 'D2as v7';
+export const DC_COUNT = 2; // Fixed number of DCs per deployment
+
+// Disk specifications (128GB Standard SSD)
 export const DISK_SKU = 'E10 LRS';
+export const DISK_METER_NAME = 'E10 LRS Disk'; // Azure API meterName includes "Disk" suffix
 export const DISK_SIZE_GIB = 128;
 export const DISK_NAME = 'E10 Standard SSD';
 
+// Windows Server 2022 License
+export const WINDOWS_LICENSE_PRICE_PER_8_CORES = 16.15; // Monthly cost per 8 cores
+export const WINDOWS_LICENSE_CORE_PACK = 8; // Minimum licensing unit
+
 // vCPU per user based on workload type
 export const VCPU_PER_USER: Record<WorkloadType, number> = {
-  light: 0.15,   // ~26 users per D4as_v5
-  medium: 0.25,  // 16 users per D4as_v5
-  heavy: 0.5,    // 8 users per D4as_v5
+  light: 0.15,   // ~53 users per D8as_v7
+  medium: 0.25,  // 32 users per D8as_v7
+  heavy: 0.5,    // 16 users per D8as_v7
 };
 
 // ANF specifications
 export const ANF_PROFILE_SIZE_GB_PER_USER = 5;
-export const ANF_MIN_POOL_SIZE_TIB = 4; // Minimum ANF capacity pool size
+export const ANF_MIN_POOL_SIZE_TIB = 1; // Minimum ANF capacity pool size (negotiated with Microsoft)
 
-// Reservation term
-export const RESERVATION_TERM = '3 Years';
+// Reservation term options
+export const RESERVATION_TERMS = [
+  { value: 'payg', label: 'Pay-as-you-go', description: 'Hourly billing, no commitment' },
+  { value: '1year', label: '1 Year Reserved', description: 'Up to 40% savings' },
+  { value: '3year', label: '3 Year Reserved', description: 'Up to 60% savings' },
+] as const;
+
+// Map reservation term values to Azure API values
+export const RESERVATION_TERM_API_VALUES: Record<ReservationTerm, { priceType: string; term: string | null; months: number }> = {
+  payg: { priceType: 'Consumption', term: null, months: 1 },
+  '1year': { priceType: 'Reservation', term: '1 Year', months: 12 },
+  '3year': { priceType: 'Reservation', term: '3 Years', months: 36 },
+};
 
 // Hours per month (average)
 export const HOURS_PER_MONTH = 730;

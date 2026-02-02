@@ -1,11 +1,13 @@
 export type WorkloadType = 'light' | 'medium' | 'heavy';
 export type AnfServiceLevel = 'Standard' | 'Premium';
+export type ReservationTerm = 'payg' | '1year' | '3year';
 
 export interface CalculatorInput {
   region: string;
   concurrentUsers: number;
   workloadType: WorkloadType;
   anfServiceLevel: AnfServiceLevel;
+  reservationTerm: ReservationTerm;
 }
 
 export interface LineItem {
@@ -36,6 +38,7 @@ export interface Scenario {
   concurrentUsers: number;
   workloadType: WorkloadType;
   anfServiceLevel: AnfServiceLevel;
+  reservationTerm: ReservationTerm;
   calculationResult: CalculationResult | null;
   createdAt: Date;
   updatedAt: Date;
@@ -61,6 +64,7 @@ export interface ScenarioCreateInput {
   concurrentUsers: number;
   workloadType: WorkloadType;
   anfServiceLevel: AnfServiceLevel;
+  reservationTerm: ReservationTerm;
   calculationResult?: CalculationResult;
 }
 
@@ -70,5 +74,6 @@ export interface ScenarioUpdateInput {
   concurrentUsers?: number;
   workloadType?: WorkloadType;
   anfServiceLevel?: AnfServiceLevel;
+  reservationTerm?: ReservationTerm;
   calculationResult?: CalculationResult;
 }

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { US_REGIONS, WORKLOAD_TYPES, ANF_SERVICE_LEVELS } from '@/lib/constants';
-import type { CalculatorInput, CalculationResult, WorkloadType, AnfServiceLevel } from '@/types';
+import { US_REGIONS, WORKLOAD_TYPES, ANF_SERVICE_LEVELS, RESERVATION_TERMS } from '@/lib/constants';
+import type { CalculatorInput, CalculationResult, WorkloadType, AnfServiceLevel, ReservationTerm } from '@/types';
 
 interface CalculatorProps {
   onCalculate: (result: CalculationResult, input: CalculatorInput) => void;
@@ -15,6 +15,7 @@ export default function Calculator({ onCalculate, initialInput, isLoading }: Cal
   const [concurrentUsers, setConcurrentUsers] = useState(initialInput?.concurrentUsers || 100);
   const [workloadType, setWorkloadType] = useState<WorkloadType>(initialInput?.workloadType || 'medium');
   const [anfServiceLevel, setAnfServiceLevel] = useState<AnfServiceLevel>(initialInput?.anfServiceLevel || 'Standard');
+  const [reservationTerm, setReservationTerm] = useState<ReservationTerm>(initialInput?.reservationTerm || '3year');
   const [error, setError] = useState<string | null>(null);
   const [calculating, setCalculating] = useState(false);
 
@@ -29,6 +30,7 @@ export default function Calculator({ onCalculate, initialInput, isLoading }: Cal
         concurrentUsers,
         workloadType,
         anfServiceLevel,
+        reservationTerm,
       };
 
       const response = await fetch('/api/calculate', {
@@ -123,6 +125,25 @@ export default function Calculator({ onCalculate, initialInput, isLoading }: Cal
             {ANF_SERVICE_LEVELS.map((l) => (
               <option key={l.value} value={l.value}>
                 {l.label} - {l.description}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="reservation" className="block text-sm font-medium text-gray-700 mb-1">
+            VM Reservation Term
+          </label>
+          <select
+            id="reservation"
+            value={reservationTerm}
+            onChange={(e) => setReservationTerm(e.target.value as ReservationTerm)}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={isLoading || calculating}
+          >
+            {RESERVATION_TERMS.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label} - {t.description}
               </option>
             ))}
           </select>
