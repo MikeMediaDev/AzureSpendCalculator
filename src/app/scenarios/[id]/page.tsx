@@ -171,7 +171,7 @@ export default function ScenarioPage({ params }: PageProps) {
 
       {scenario.calculationResult && (
         <>
-          <ResultsTable result={scenario.calculationResult} />
+          <ResultsTable result={scenario.calculationResult} concurrentUsers={scenario.concurrentUsers} />
           {isvCharge > 0 && (
             <ProfitAnalysis
               isvCharge={isvCharge}

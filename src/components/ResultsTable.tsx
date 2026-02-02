@@ -4,6 +4,7 @@ import type { CalculationResult } from '@/types';
 
 interface ResultsTableProps {
   result: CalculationResult;
+  concurrentUsers: number;
 }
 
 function formatCurrency(value: number): string {
@@ -15,7 +16,9 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
-export default function ResultsTable({ result }: ResultsTableProps) {
+export default function ResultsTable({ result, concurrentUsers }: ResultsTableProps) {
+  const perUserMonthly = result.totalMonthly / concurrentUsers;
+  const perUserAnnual = result.totalAnnual / concurrentUsers;
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200">
@@ -95,6 +98,22 @@ export default function ResultsTable({ result }: ResultsTableProps) {
             </td>
             <td className="px-6 py-4 text-sm font-bold text-blue-600 text-right">
               {formatCurrency(result.totalAnnual)}
+            </td>
+          </tr>
+          <tr className="border-t-2 border-gray-300">
+            <td colSpan={4} className="px-6 py-4 text-sm font-medium text-gray-900 text-right">
+              Per User Monthly
+            </td>
+            <td className="px-6 py-4 text-sm font-bold text-gray-900 text-right">
+              {formatCurrency(perUserMonthly)}
+            </td>
+          </tr>
+          <tr>
+            <td colSpan={4} className="px-6 py-4 text-sm font-medium text-gray-900 text-right">
+              Per User Annual
+            </td>
+            <td className="px-6 py-4 text-sm font-bold text-blue-600 text-right">
+              {formatCurrency(perUserAnnual)}
             </td>
           </tr>
         </tfoot>

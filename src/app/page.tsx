@@ -108,7 +108,7 @@ export default function Home() {
             </div>
           </div>
 
-          <ResultsTable result={result} />
+          <ResultsTable result={result} concurrentUsers={input.concurrentUsers} />
 
           {isvCharge > 0 && (
             <ProfitAnalysis
