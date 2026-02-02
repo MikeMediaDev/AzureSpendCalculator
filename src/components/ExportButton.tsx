@@ -38,16 +38,16 @@ export default function ExportButton({ result, input, scenarioName }: ExportButt
         `"${item.name}"`,
         item.sku,
         item.quantity,
-        item.unitPrice.toFixed(2),
-        item.monthlyPrice.toFixed(2),
+        Number(item.unitPrice).toFixed(2),
+        Number(item.monthlyPrice).toFixed(2),
       ];
       lines.push(row.join(','));
     }
 
     // Totals
     lines.push('');
-    lines.push(`Total Monthly,$${result.totalMonthly.toFixed(2)}`);
-    lines.push(`Total Annual,$${result.totalAnnual.toFixed(2)}`);
+    lines.push(`Total Monthly,$${Number(result.totalMonthly).toFixed(2)}`);
+    lines.push(`Total Annual,$${Number(result.totalAnnual).toFixed(2)}`);
 
     const csv = lines.join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });

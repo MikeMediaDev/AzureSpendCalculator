@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getScenario, updateScenario, deleteScenario } from '@/lib/db';
-import type { WorkloadType, AnfServiceLevel } from '@/types';
+import type { WorkloadType, AnfServiceLevel, ReservationTerm } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +40,7 @@ export async function PUT(request: Request, context: RouteContext) {
     }
 
     const body = await request.json();
-    const { name, region, concurrentUsers, workloadType, anfServiceLevel, calculationResult } = body;
+    const { name, region, concurrentUsers, workloadType, anfServiceLevel, reservationTerm, calculationResult } = body;
 
     // Validate fields if provided
     if (name !== undefined && typeof name !== 'string') {
@@ -63,12 +63,17 @@ export async function PUT(request: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Invalid ANF service level' }, { status: 400 });
     }
 
+    if (reservationTerm !== undefined && !['payg', '1year', '3year'].includes(reservationTerm)) {
+      return NextResponse.json({ error: 'Invalid reservation term' }, { status: 400 });
+    }
+
     const scenario = await updateScenario(scenarioId, {
       name,
       region,
       concurrentUsers,
       workloadType: workloadType as WorkloadType | undefined,
       anfServiceLevel: anfServiceLevel as AnfServiceLevel | undefined,
+      reservationTerm: reservationTerm as ReservationTerm | undefined,
       calculationResult,
     });
 
