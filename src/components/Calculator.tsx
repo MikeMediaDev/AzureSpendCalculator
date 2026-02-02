@@ -13,6 +13,7 @@ interface CalculatorProps {
 export default function Calculator({ onCalculate, initialInput, isLoading }: CalculatorProps) {
   const [region, setRegion] = useState(initialInput?.region || 'eastus');
   const [concurrentUsers, setConcurrentUsers] = useState(initialInput?.concurrentUsers || MIN_CONCURRENT_USERS);
+  const [concurrentUsersInput, setConcurrentUsersInput] = useState(String(initialInput?.concurrentUsers || MIN_CONCURRENT_USERS));
   const [workloadType, setWorkloadType] = useState<WorkloadType>(initialInput?.workloadType || 'medium');
   const [anfServiceLevel, setAnfServiceLevel] = useState<AnfServiceLevel>(initialInput?.anfServiceLevel || 'Standard');
   const [reservationTerm, setReservationTerm] = useState<ReservationTerm>(initialInput?.reservationTerm || '3year');
@@ -24,10 +25,16 @@ export default function Calculator({ onCalculate, initialInput, isLoading }: Cal
     setError(null);
     setCalculating(true);
 
+    // Validate concurrent users from input in case blur hasn't fired yet
+    const parsed = parseInt(concurrentUsersInput, 10);
+    const validatedUsers = Math.max(MIN_CONCURRENT_USERS, parsed || MIN_CONCURRENT_USERS);
+    setConcurrentUsers(validatedUsers);
+    setConcurrentUsersInput(String(validatedUsers));
+
     try {
       const input: CalculatorInput = {
         region,
-        concurrentUsers,
+        concurrentUsers: validatedUsers,
         workloadType,
         anfServiceLevel,
         reservationTerm,
@@ -85,8 +92,14 @@ export default function Calculator({ onCalculate, initialInput, isLoading }: Cal
             id="users"
             type="number"
             min={MIN_CONCURRENT_USERS}
-            value={concurrentUsers}
-            onChange={(e) => setConcurrentUsers(Math.max(MIN_CONCURRENT_USERS, parseInt(e.target.value, 10) || MIN_CONCURRENT_USERS))}
+            value={concurrentUsersInput}
+            onChange={(e) => setConcurrentUsersInput(e.target.value)}
+            onBlur={(e) => {
+              const parsed = parseInt(e.target.value, 10);
+              const validated = Math.max(MIN_CONCURRENT_USERS, parsed || MIN_CONCURRENT_USERS);
+              setConcurrentUsers(validated);
+              setConcurrentUsersInput(String(validated));
+            }}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={isLoading || calculating}
           />
