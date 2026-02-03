@@ -43,6 +43,9 @@ export default function ProfitAnalysis({ isvCharge, concurrentUsers, totalMonthl
             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
               Monthly
             </th>
+            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Annual
+            </th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
@@ -56,6 +59,9 @@ export default function ProfitAnalysis({ isvCharge, concurrentUsers, totalMonthl
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
               {formatCurrency(totalRevenue)}
             </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
+              {formatCurrency(totalRevenue * 12)}
+            </td>
           </tr>
           <tr>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -66,6 +72,9 @@ export default function ProfitAnalysis({ isvCharge, concurrentUsers, totalMonthl
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right font-medium">
               ({formatCurrency(totalMonthlyCost)})
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right font-medium">
+              ({formatCurrency(totalMonthlyCost * 12)})
             </td>
           </tr>
           {supportCost > 0 && (
@@ -79,6 +88,9 @@ export default function ProfitAnalysis({ isvCharge, concurrentUsers, totalMonthl
               <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right font-medium">
                 ({formatCurrency(supportCost)})
               </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right font-medium">
+                ({formatCurrency(supportCost * 12)})
+              </td>
             </tr>
           )}
           {supportCost > 0 && (
@@ -90,6 +102,9 @@ export default function ProfitAnalysis({ isvCharge, concurrentUsers, totalMonthl
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right font-medium">
                 ({formatCurrency(totalCosts)})
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right font-medium">
+                ({formatCurrency(totalCosts * 12)})
               </td>
             </tr>
           )}
@@ -104,6 +119,9 @@ export default function ProfitAnalysis({ isvCharge, concurrentUsers, totalMonthl
             </td>
             <td className={`px-6 py-4 text-sm font-bold text-right ${grossProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {formatCurrency(grossProfit)}
+            </td>
+            <td className={`px-6 py-4 text-sm font-bold text-right ${grossProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {formatCurrency(grossProfit * 12)}
             </td>
           </tr>
         </tfoot>
