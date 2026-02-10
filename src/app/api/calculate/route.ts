@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { calculate } from '@/lib/calculator';
 import { MIN_CONCURRENT_USERS } from '@/lib/constants';
-import type { CalculatorInput, WorkloadType, AnfServiceLevel, ReservationTerm } from '@/types';
+import type { CalculatorInput, WorkloadType, AnfServiceLevel, ReservationTerm, SqlDbSize } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     // Validate input
-    const { region, concurrentUsers, workloadType, anfServiceLevel, reservationTerm } = body;
+    const { region, concurrentUsers, workloadType, anfServiceLevel, reservationTerm, sqlDbEnabled, sqlDbSize, sqlDbStorageGb } = body;
 
     if (!region || typeof region !== 'string') {
       return NextResponse.json({ error: 'Invalid region' }, { status: 400 });
@@ -34,12 +34,22 @@ export async function POST(request: Request) {
       ? reservationTerm as ReservationTerm
       : '3year';
 
+    // Validate SQL Database options
+    const validSqlDbSizes = ['small', 'medium', 'large'];
+    const isSqlDbEnabled = sqlDbEnabled === true;
+    const selectedSqlDbSize: SqlDbSize = isSqlDbEnabled && validSqlDbSizes.includes(sqlDbSize)
+      ? sqlDbSize as SqlDbSize
+      : null;
+
     const input: CalculatorInput = {
       region,
       concurrentUsers,
       workloadType: workloadType as WorkloadType,
       anfServiceLevel: anfServiceLevel as AnfServiceLevel,
       reservationTerm: selectedReservationTerm,
+      sqlDbEnabled: isSqlDbEnabled,
+      sqlDbSize: selectedSqlDbSize,
+      sqlDbStorageGb: isSqlDbEnabled && typeof sqlDbStorageGb === 'number' ? sqlDbStorageGb : null,
     };
 
     const result = await calculate(input);

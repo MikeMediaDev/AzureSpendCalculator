@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAllScenarios, createScenario } from '@/lib/db';
-import type { WorkloadType, AnfServiceLevel, ReservationTerm } from '@/types';
+import type { WorkloadType, AnfServiceLevel, ReservationTerm, SqlDbSize } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     // Validate input
-    const { name, region, concurrentUsers, workloadType, anfServiceLevel, reservationTerm, calculationResult } = body;
+    const { name, region, concurrentUsers, workloadType, anfServiceLevel, reservationTerm, sqlDbEnabled, sqlDbSize, sqlDbStorageGb, isvCharge, supportLevel, supportHourlyRate, calculationResult } = body;
 
     if (!name || typeof name !== 'string') {
       return NextResponse.json({ error: 'Invalid name' }, { status: 400 });
@@ -47,6 +47,13 @@ export async function POST(request: Request) {
       ? reservationTerm as ReservationTerm
       : '3year';
 
+    // Validate SQL Database options
+    const validSqlDbSizes = ['small', 'medium', 'large'];
+    const isSqlDbEnabled = sqlDbEnabled === true;
+    const selectedSqlDbSize: SqlDbSize = isSqlDbEnabled && validSqlDbSizes.includes(sqlDbSize)
+      ? sqlDbSize as SqlDbSize
+      : null;
+
     const scenario = await createScenario({
       name,
       region,
@@ -54,6 +61,12 @@ export async function POST(request: Request) {
       workloadType: workloadType as WorkloadType,
       anfServiceLevel: anfServiceLevel as AnfServiceLevel,
       reservationTerm: selectedReservationTerm,
+      isvCharge: typeof isvCharge === 'number' ? isvCharge : undefined,
+      supportLevel: supportLevel || undefined,
+      supportHourlyRate: typeof supportHourlyRate === 'number' ? supportHourlyRate : undefined,
+      sqlDbEnabled: isSqlDbEnabled,
+      sqlDbSize: selectedSqlDbSize,
+      sqlDbStorageGb: isSqlDbEnabled && typeof sqlDbStorageGb === 'number' ? sqlDbStorageGb : undefined,
       calculationResult: calculationResult || undefined,
     });
 

@@ -2,6 +2,8 @@ export type WorkloadType = 'light' | 'medium' | 'heavy';
 export type AnfServiceLevel = 'Standard' | 'Premium';
 export type ReservationTerm = 'payg' | '1year' | '3year';
 export type SupportLevel = 'low' | 'medium' | 'high';
+export type SqlDbSize = 'small' | 'medium' | 'large' | null;
+export type SqlDbStorageGb = number | null;
 
 export interface CalculatorInput {
   region: string;
@@ -9,6 +11,9 @@ export interface CalculatorInput {
   workloadType: WorkloadType;
   anfServiceLevel: AnfServiceLevel;
   reservationTerm: ReservationTerm;
+  sqlDbEnabled: boolean;
+  sqlDbSize: SqlDbSize;
+  sqlDbStorageGb: SqlDbStorageGb;
 }
 
 export interface LineItem {
@@ -43,6 +48,9 @@ export interface Scenario {
   isvCharge: number;
   supportLevel: SupportLevel;
   supportHourlyRate: number;
+  sqlDbEnabled: boolean;
+  sqlDbSize: SqlDbSize;
+  sqlDbStorageGb: SqlDbStorageGb;
   calculationResult: CalculationResult | null;
   createdAt: Date;
   updatedAt: Date;
@@ -72,6 +80,9 @@ export interface ScenarioCreateInput {
   isvCharge?: number;
   supportLevel?: SupportLevel;
   supportHourlyRate?: number;
+  sqlDbEnabled?: boolean;
+  sqlDbSize?: SqlDbSize;
+  sqlDbStorageGb?: SqlDbStorageGb;
   calculationResult?: CalculationResult;
 }
 
@@ -85,5 +96,8 @@ export interface ScenarioUpdateInput {
   isvCharge?: number;
   supportLevel?: SupportLevel;
   supportHourlyRate?: number;
+  sqlDbEnabled?: boolean;
+  sqlDbSize?: SqlDbSize;
+  sqlDbStorageGb?: SqlDbStorageGb;
   calculationResult?: CalculationResult;
 }

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { US_REGIONS, WORKLOAD_TYPES, ANF_SERVICE_LEVELS, RESERVATION_TERMS, SUPPORT_LEVELS, MIN_CONCURRENT_USERS } from '@/lib/constants';
-import type { CalculatorInput, CalculationResult, WorkloadType, AnfServiceLevel, ReservationTerm, SupportLevel } from '@/types';
+import { US_REGIONS, WORKLOAD_TYPES, ANF_SERVICE_LEVELS, RESERVATION_TERMS, SUPPORT_LEVELS, MIN_CONCURRENT_USERS, SQL_DB_SIZES, SQL_DB_DEFAULT_STORAGE_GB } from '@/lib/constants';
+import type { CalculatorInput, CalculationResult, WorkloadType, AnfServiceLevel, ReservationTerm, SupportLevel, SqlDbSize } from '@/types';
 
 interface CalculatorProps {
   onCalculate: (result: CalculationResult, input: CalculatorInput) => void;
@@ -20,11 +20,14 @@ export default function Calculator({ onCalculate, initialInput, isLoading, isvCh
   const [isvChargeInput, setIsvChargeInput] = useState(String(isvCharge || 0));
   const [supportHourlyRateInput, setSupportHourlyRateInput] = useState(String(supportHourlyRate || 0));
   const [region, setRegion] = useState(initialInput?.region || 'eastus');
-  const [concurrentUsers, setConcurrentUsers] = useState(initialInput?.concurrentUsers || MIN_CONCURRENT_USERS);
   const [concurrentUsersInput, setConcurrentUsersInput] = useState(String(initialInput?.concurrentUsers || MIN_CONCURRENT_USERS));
   const [workloadType, setWorkloadType] = useState<WorkloadType>(initialInput?.workloadType || 'medium');
   const [anfServiceLevel, setAnfServiceLevel] = useState<AnfServiceLevel>(initialInput?.anfServiceLevel || 'Standard');
   const [reservationTerm, setReservationTerm] = useState<ReservationTerm>(initialInput?.reservationTerm || '3year');
+  const [sqlDbEnabled, setSqlDbEnabled] = useState(initialInput?.sqlDbEnabled || false);
+  const [sqlDbSize, setSqlDbSize] = useState<SqlDbSize>(initialInput?.sqlDbSize || 'small');
+  const [sqlDbStorageGb, setSqlDbStorageGb] = useState(initialInput?.sqlDbStorageGb || SQL_DB_DEFAULT_STORAGE_GB);
+  const [sqlDbStorageGbInput, setSqlDbStorageGbInput] = useState(String(initialInput?.sqlDbStorageGb || SQL_DB_DEFAULT_STORAGE_GB));
   const [error, setError] = useState<string | null>(null);
   const [calculating, setCalculating] = useState(false);
 
@@ -36,7 +39,6 @@ export default function Calculator({ onCalculate, initialInput, isLoading, isvCh
     // Validate concurrent users from input in case blur hasn't fired yet
     const parsed = parseInt(concurrentUsersInput, 10);
     const validatedUsers = Math.max(MIN_CONCURRENT_USERS, parsed || MIN_CONCURRENT_USERS);
-    setConcurrentUsers(validatedUsers);
     setConcurrentUsersInput(String(validatedUsers));
 
     try {
@@ -46,6 +48,9 @@ export default function Calculator({ onCalculate, initialInput, isLoading, isvCh
         workloadType,
         anfServiceLevel,
         reservationTerm,
+        sqlDbEnabled,
+        sqlDbSize: sqlDbEnabled ? sqlDbSize : null,
+        sqlDbStorageGb: sqlDbEnabled ? sqlDbStorageGb : null,
       };
 
       const response = await fetch('/api/calculate', {
@@ -105,7 +110,6 @@ export default function Calculator({ onCalculate, initialInput, isLoading, isvCh
             onBlur={(e) => {
               const parsed = parseInt(e.target.value, 10);
               const validated = Math.max(MIN_CONCURRENT_USERS, parsed || MIN_CONCURRENT_USERS);
-              setConcurrentUsers(validated);
               setConcurrentUsersInput(String(validated));
             }}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -238,6 +242,77 @@ export default function Calculator({ onCalculate, initialInput, isLoading, isvCh
             ))}
           </select>
         </div>
+
+        <div>
+          <label htmlFor="sqlDbEnabled" className="block text-sm font-medium text-gray-700 mb-1">
+            Include Azure SQL Database
+          </label>
+          <div className="flex items-center space-x-3">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={sqlDbEnabled}
+              onClick={() => setSqlDbEnabled(!sqlDbEnabled)}
+              disabled={isLoading || calculating}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                sqlDbEnabled ? 'bg-blue-600' : 'bg-gray-200'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  sqlDbEnabled ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+            <span className="text-sm text-gray-600">
+              {sqlDbEnabled ? 'Enabled' : 'Disabled'}
+            </span>
+          </div>
+        </div>
+
+        {sqlDbEnabled && (
+          <div>
+            <label htmlFor="sqlDbSize" className="block text-sm font-medium text-gray-700 mb-1">
+              SQL Database Size
+            </label>
+            <select
+              id="sqlDbSize"
+              value={sqlDbSize || 'small'}
+              onChange={(e) => setSqlDbSize(e.target.value as SqlDbSize)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isLoading || calculating}
+            >
+              {SQL_DB_SIZES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label} - {s.description}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {sqlDbEnabled && (
+          <div>
+            <label htmlFor="sqlDbStorageGb" className="block text-sm font-medium text-gray-700 mb-1">
+              SQL Database Storage (GB)
+            </label>
+            <input
+              id="sqlDbStorageGb"
+              type="number"
+              min={1}
+              value={sqlDbStorageGbInput}
+              onChange={(e) => setSqlDbStorageGbInput(e.target.value)}
+              onBlur={(e) => {
+                const parsed = parseInt(e.target.value, 10);
+                const validated = Math.max(1, parsed || SQL_DB_DEFAULT_STORAGE_GB);
+                setSqlDbStorageGb(validated);
+                setSqlDbStorageGbInput(String(validated));
+              }}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isLoading || calculating}
+            />
+          </div>
+        )}
       </div>
 
       {error && (

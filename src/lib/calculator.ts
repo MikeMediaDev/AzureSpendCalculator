@@ -1,4 +1,4 @@
-import type { CalculatorInput, CalculationResult, LineItem, AnfServiceLevel, ReservationTerm } from '@/types';
+import type { CalculatorInput, CalculationResult, LineItem, AnfServiceLevel, ReservationTerm, SqlDbSize } from '@/types';
 import {
   VM_SKU,
   VM_VCPUS,
@@ -21,6 +21,9 @@ import {
   WINDOWS_LICENSE_CORE_PACK,
   HOURS_PER_MONTH,
   GO_GLOBAL_PRICING_TIERS,
+  SQL_DB_SIZES,
+  SQL_DB_SKU_PREFIX,
+  SQL_DB_DEFAULT_STORAGE_GB,
 } from './constants';
 import { getPrice } from './db';
 
@@ -29,6 +32,10 @@ interface PriceData {
   dcVmMonthlyPrice: number;
   diskMonthlyPrice: number;
   anfPricePerTiBMonth: number;
+  sqlDbSmallMonthlyPrice: number;
+  sqlDbMediumMonthlyPrice: number;
+  sqlDbLargeMonthlyPrice: number;
+  sqlDbStorageMonthlyPrice: number; // per GB
 }
 
 // Get GO-Global price per user based on tiered pricing
@@ -80,7 +87,50 @@ async function fetchPrices(region: string, anfServiceLevel: AnfServiceLevel, res
   // ANF price is per GiB per hour, convert to per TiB per month
   const anfPricePerTiBMonth = anfPrice.unitPrice * 1024 * HOURS_PER_MONTH;
 
-  return { vmMonthlyPrice, dcVmMonthlyPrice, diskMonthlyPrice, anfPricePerTiBMonth };
+  // Get SQL Database prices for each size
+  // Note: Azure API only returns Consumption pricing for SQL DB vCore compute
+  // For reservations, we use PAYG price with standard Azure discount estimates
+  const sqlDbPrices: { [key: string]: number } = {};
+  for (const size of SQL_DB_SIZES) {
+    const skuName = `${SQL_DB_SKU_PREFIX}_${size.vCores}`;
+    // Always fetch Consumption pricing since that's what Azure provides
+    const sqlDbPrice = await getPrice(skuName, region, null, 'Consumption');
+
+    console.log(`SQL DB price lookup: ${skuName}, ${region}`, sqlDbPrice);
+
+    if (sqlDbPrice) {
+      // Base monthly price from hourly rate
+      const baseMonthlyPrice = sqlDbPrice.unitPrice * HOURS_PER_MONTH;
+
+      // Apply reservation discount if applicable
+      // Azure typical discounts: 1-year ~33%, 3-year ~55%
+      let discountMultiplier = 1.0;
+      if (reservationTerm === '1year') {
+        discountMultiplier = 0.67; // ~33% discount
+      } else if (reservationTerm === '3year') {
+        discountMultiplier = 0.45; // ~55% discount
+      }
+
+      sqlDbPrices[size.value] = baseMonthlyPrice * discountMultiplier;
+    } else {
+      sqlDbPrices[size.value] = 0;
+    }
+  }
+
+  // Get SQL Database storage price (per GB per month)
+  const sqlDbStoragePrice = await getPrice('SQL-DB-Storage', region, null, 'Consumption');
+  const sqlDbStorageMonthlyPrice = sqlDbStoragePrice ? sqlDbStoragePrice.unitPrice : 0;
+
+  return {
+    vmMonthlyPrice,
+    dcVmMonthlyPrice,
+    diskMonthlyPrice,
+    anfPricePerTiBMonth,
+    sqlDbSmallMonthlyPrice: sqlDbPrices['small'] || 0,
+    sqlDbMediumMonthlyPrice: sqlDbPrices['medium'] || 0,
+    sqlDbLargeMonthlyPrice: sqlDbPrices['large'] || 0,
+    sqlDbStorageMonthlyPrice,
+  };
 }
 
 // Get display label for reservation term
@@ -92,8 +142,24 @@ function getReservationLabel(term: ReservationTerm): string {
   }
 }
 
+// Get SQL Database compute price for a given size
+function getSqlDbComputePrice(prices: PriceData, size: SqlDbSize): number {
+  switch (size) {
+    case 'small': return prices.sqlDbSmallMonthlyPrice;
+    case 'medium': return prices.sqlDbMediumMonthlyPrice;
+    case 'large': return prices.sqlDbLargeMonthlyPrice;
+    default: return 0;
+  }
+}
+
+// Get SQL Database size info
+function getSqlDbSizeInfo(size: SqlDbSize): { label: string; vCores: number } {
+  const sizeInfo = SQL_DB_SIZES.find(s => s.value === size);
+  return sizeInfo ? { label: sizeInfo.label, vCores: sizeInfo.vCores } : { label: '', vCores: 0 };
+}
+
 export async function calculate(input: CalculatorInput): Promise<CalculationResult> {
-  const { region, concurrentUsers, workloadType, anfServiceLevel, reservationTerm = '3year' } = input;
+  const { region, concurrentUsers, workloadType, anfServiceLevel, reservationTerm = '3year', sqlDbEnabled = false, sqlDbSize = null, sqlDbStorageGb = null } = input;
 
   // Calculate number of VMs needed
   const vcpuPerUser = VCPU_PER_USER[workloadType];
@@ -199,6 +265,34 @@ export async function calculate(input: CalculatorInput): Promise<CalculationResu
     monthlyPrice: anfTotalMonthly,
   });
 
+  // Azure SQL Database (optional) - Compute
+  if (sqlDbEnabled && sqlDbSize) {
+    const sizeInfo = getSqlDbSizeInfo(sqlDbSize);
+    const sqlDbComputePrice = getSqlDbComputePrice(prices, sqlDbSize);
+    const sqlDbSku = `${SQL_DB_SKU_PREFIX}_${sizeInfo.vCores}`;
+
+    lineItems.push({
+      name: `Azure SQL Database ${sizeInfo.label} Compute (GP Gen5, ${reservationLabel})`,
+      sku: sqlDbSku,
+      quantity: 1,
+      unitPrice: sqlDbComputePrice,
+      monthlyPrice: sqlDbComputePrice,
+    });
+
+    // Azure SQL Database - Storage
+    const storageGb = sqlDbStorageGb || SQL_DB_DEFAULT_STORAGE_GB;
+    const sqlDbStoragePricePerGb = prices.sqlDbStorageMonthlyPrice;
+    const sqlDbStorageTotal = sqlDbStoragePricePerGb * storageGb;
+
+    lineItems.push({
+      name: `Azure SQL Database Storage`,
+      sku: 'SQL-DB-Storage',
+      quantity: storageGb,
+      unitPrice: sqlDbStoragePricePerGb,
+      monthlyPrice: sqlDbStorageTotal,
+    });
+  }
+
   // GO-Global Licenses (tiered pricing based on concurrent users)
   const goGlobalPricePerUser = getGoGlobalPricePerUser(concurrentUsers);
   const goGlobalTotalMonthly = concurrentUsers * goGlobalPricePerUser;
@@ -229,7 +323,7 @@ export function calculateWithPrices(
   input: CalculatorInput,
   prices: PriceData
 ): CalculationResult {
-  const { concurrentUsers, workloadType, anfServiceLevel, reservationTerm = '3year' } = input;
+  const { concurrentUsers, workloadType, anfServiceLevel, reservationTerm = '3year', sqlDbEnabled = false, sqlDbSize = null, sqlDbStorageGb = null } = input;
   const reservationLabel = getReservationLabel(reservationTerm);
 
   // Calculate number of VMs needed
@@ -330,6 +424,34 @@ export function calculateWithPrices(
     unitPrice: prices.anfPricePerTiBMonth,
     monthlyPrice: anfTotalMonthly,
   });
+
+  // Azure SQL Database (optional) - Compute
+  if (sqlDbEnabled && sqlDbSize) {
+    const sizeInfo = getSqlDbSizeInfo(sqlDbSize);
+    const sqlDbComputePrice = getSqlDbComputePrice(prices, sqlDbSize);
+    const sqlDbSku = `${SQL_DB_SKU_PREFIX}_${sizeInfo.vCores}`;
+
+    lineItems.push({
+      name: `Azure SQL Database ${sizeInfo.label} Compute (GP Gen5, ${reservationLabel})`,
+      sku: sqlDbSku,
+      quantity: 1,
+      unitPrice: sqlDbComputePrice,
+      monthlyPrice: sqlDbComputePrice,
+    });
+
+    // Azure SQL Database - Storage
+    const storageGb = sqlDbStorageGb || SQL_DB_DEFAULT_STORAGE_GB;
+    const sqlDbStoragePricePerGb = prices.sqlDbStorageMonthlyPrice;
+    const sqlDbStorageTotal = sqlDbStoragePricePerGb * storageGb;
+
+    lineItems.push({
+      name: `Azure SQL Database Storage`,
+      sku: 'SQL-DB-Storage',
+      quantity: storageGb,
+      unitPrice: sqlDbStoragePricePerGb,
+      monthlyPrice: sqlDbStorageTotal,
+    });
+  }
 
   // GO-Global Licenses (tiered pricing based on concurrent users)
   const goGlobalPricePerUser = getGoGlobalPricePerUser(concurrentUsers);

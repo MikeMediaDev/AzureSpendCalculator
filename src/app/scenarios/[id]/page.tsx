@@ -122,6 +122,9 @@ export default function ScenarioPage({ params }: PageProps) {
     workloadType: scenario.workloadType,
     anfServiceLevel: scenario.anfServiceLevel,
     reservationTerm: scenario.reservationTerm,
+    sqlDbEnabled: scenario.sqlDbEnabled || false,
+    sqlDbSize: scenario.sqlDbSize || null,
+    sqlDbStorageGb: scenario.sqlDbStorageGb || null,
   };
 
   return (

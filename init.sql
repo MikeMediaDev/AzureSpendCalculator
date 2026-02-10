@@ -22,6 +22,13 @@ CREATE TABLE scenarios (
   concurrent_users INT NOT NULL,
   workload_type VARCHAR(20) NOT NULL,
   anf_service_level VARCHAR(20) NOT NULL,
+  reservation_term VARCHAR(50) NOT NULL DEFAULT '3year',
+  isv_charge DECIMAL(10, 2) DEFAULT 0,
+  support_level VARCHAR(20) DEFAULT 'low',
+  support_hourly_rate DECIMAL(10, 2) DEFAULT 0,
+  sql_db_enabled BOOLEAN DEFAULT false,
+  sql_db_size VARCHAR(20),
+  sql_db_storage_gb INTEGER,
   calculation_result JSONB,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()

@@ -133,11 +133,12 @@ export async function getLastPriceRefresh(): Promise<Date | null> {
 
 export async function createScenario(input: ScenarioCreateInput): Promise<Scenario> {
   const result = await pool.query(
-    `INSERT INTO scenarios (name, region, concurrent_users, workload_type, anf_service_level, reservation_term, isv_charge, support_level, support_hourly_rate, calculation_result)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    `INSERT INTO scenarios (name, region, concurrent_users, workload_type, anf_service_level, reservation_term, isv_charge, support_level, support_hourly_rate, sql_db_enabled, sql_db_size, sql_db_storage_gb, calculation_result)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
      RETURNING id, name, region, concurrent_users as "concurrentUsers", workload_type as "workloadType",
                anf_service_level as "anfServiceLevel", reservation_term as "reservationTerm",
                isv_charge as "isvCharge", support_level as "supportLevel", support_hourly_rate as "supportHourlyRate",
+               sql_db_enabled as "sqlDbEnabled", sql_db_size as "sqlDbSize", sql_db_storage_gb as "sqlDbStorageGb",
                calculation_result as "calculationResult", created_at as "createdAt", updated_at as "updatedAt"`,
     [
       input.name,
@@ -149,6 +150,9 @@ export async function createScenario(input: ScenarioCreateInput): Promise<Scenar
       input.isvCharge ?? 0,
       input.supportLevel ?? 'low',
       input.supportHourlyRate ?? 0,
+      input.sqlDbEnabled ?? false,
+      input.sqlDbSize ?? null,
+      input.sqlDbStorageGb ?? null,
       input.calculationResult ? JSON.stringify(input.calculationResult) : null,
     ]
   );
@@ -160,6 +164,7 @@ export async function getScenario(id: number): Promise<Scenario | null> {
     `SELECT id, name, region, concurrent_users as "concurrentUsers", workload_type as "workloadType",
             anf_service_level as "anfServiceLevel", reservation_term as "reservationTerm",
             isv_charge as "isvCharge", support_level as "supportLevel", support_hourly_rate as "supportHourlyRate",
+            sql_db_enabled as "sqlDbEnabled", sql_db_size as "sqlDbSize", sql_db_storage_gb as "sqlDbStorageGb",
             calculation_result as "calculationResult", created_at as "createdAt", updated_at as "updatedAt"
      FROM scenarios
      WHERE id = $1`,
@@ -173,6 +178,7 @@ export async function getAllScenarios(): Promise<Scenario[]> {
     `SELECT id, name, region, concurrent_users as "concurrentUsers", workload_type as "workloadType",
             anf_service_level as "anfServiceLevel", reservation_term as "reservationTerm",
             isv_charge as "isvCharge", support_level as "supportLevel", support_hourly_rate as "supportHourlyRate",
+            sql_db_enabled as "sqlDbEnabled", sql_db_size as "sqlDbSize", sql_db_storage_gb as "sqlDbStorageGb",
             calculation_result as "calculationResult", created_at as "createdAt", updated_at as "updatedAt"
      FROM scenarios
      ORDER BY updated_at DESC`
@@ -182,7 +188,7 @@ export async function getAllScenarios(): Promise<Scenario[]> {
 
 export async function updateScenario(id: number, input: ScenarioUpdateInput): Promise<Scenario | null> {
   const updates: string[] = [];
-  const values: (string | number | CalculationResult | null)[] = [];
+  const values: (string | number | boolean | CalculationResult | null)[] = [];
   let paramIndex = 1;
 
   if (input.name !== undefined) {
@@ -221,6 +227,18 @@ export async function updateScenario(id: number, input: ScenarioUpdateInput): Pr
     updates.push(`support_hourly_rate = $${paramIndex++}`);
     values.push(input.supportHourlyRate);
   }
+  if (input.sqlDbEnabled !== undefined) {
+    updates.push(`sql_db_enabled = $${paramIndex++}`);
+    values.push(input.sqlDbEnabled);
+  }
+  if (input.sqlDbSize !== undefined) {
+    updates.push(`sql_db_size = $${paramIndex++}`);
+    values.push(input.sqlDbSize);
+  }
+  if (input.sqlDbStorageGb !== undefined) {
+    updates.push(`sql_db_storage_gb = $${paramIndex++}`);
+    values.push(input.sqlDbStorageGb);
+  }
   if (input.calculationResult !== undefined) {
     updates.push(`calculation_result = $${paramIndex++}`);
     values.push(JSON.stringify(input.calculationResult));
@@ -239,6 +257,7 @@ export async function updateScenario(id: number, input: ScenarioUpdateInput): Pr
      RETURNING id, name, region, concurrent_users as "concurrentUsers", workload_type as "workloadType",
                anf_service_level as "anfServiceLevel", reservation_term as "reservationTerm",
                isv_charge as "isvCharge", support_level as "supportLevel", support_hourly_rate as "supportHourlyRate",
+               sql_db_enabled as "sqlDbEnabled", sql_db_size as "sqlDbSize", sql_db_storage_gb as "sqlDbStorageGb",
                calculation_result as "calculationResult", created_at as "createdAt", updated_at as "updatedAt"`,
     values
   );

@@ -1,4 +1,4 @@
-import { AZURE_PRICES_API_URL, US_REGIONS, VM_SKU, DC_VM_SKU, DISK_SKU, DISK_METER_NAME } from './constants';
+import { AZURE_PRICES_API_URL, US_REGIONS, VM_SKU, DC_VM_SKU, DISK_SKU, DISK_METER_NAME, SQL_DB_SIZES, SQL_DB_SKU_PREFIX } from './constants';
 import { upsertPricesBatch } from './db';
 import type { AzurePrice } from '@/types';
 
@@ -114,15 +114,97 @@ export async function refreshAnfPrices(region: string): Promise<PriceData[]> {
     }));
 }
 
+export async function refreshSqlDbPrices(region: string): Promise<PriceData[]> {
+  const prices: PriceData[] = [];
+
+  // Fetch SQL Database pricing with broad filter to discover product names
+  const filter = `serviceName eq 'SQL Database' and armRegionName eq '${region}'`;
+  const items = await fetchAzurePrices(filter);
+
+  // Log unique product names to discover the correct naming
+  const productNames = [...new Set(items.map(i => i.productName))];
+  console.log(`SQL DB products for ${region}:`, productNames.slice(0, 10));
+
+  // Filter for General Purpose Gen5 Single Database compute
+  // - meterName should be "vCore" (not "Zone Redundancy vCore")
+  // - skuName contains the vCore count (e.g., "2 vCore")
+  const computeItems = items.filter(item =>
+    item.productName.includes('General Purpose') &&
+    item.productName.includes('Gen5') &&
+    item.productName.includes('Compute') &&
+    !item.productName.includes('Dev/Test') &&
+    !item.productName.includes('Serverless') &&
+    item.meterName === 'vCore' // Exclude Zone Redundancy
+  );
+
+  console.log(`SQL DB compute items for ${region} (filtered):`, computeItems.length);
+  if (computeItems.length > 0) {
+    console.log('Sample SQL DB compute item:', JSON.stringify(computeItems[0], null, 2));
+  }
+
+  for (const item of computeItems) {
+    // Only include Consumption (pay-as-you-go) and Reservation pricing
+    if (item.type !== 'Consumption' && item.type !== 'Reservation') continue;
+
+    // Extract vCore count from skuName (e.g., "2 vCore" -> 2)
+    const vCoreMatch = item.skuName.match(/^(\d+)\s*vCore/i);
+    if (!vCoreMatch) continue;
+
+    const vCores = parseInt(vCoreMatch[1], 10);
+    // Only include sizes we care about (2, 4, 8 vCores)
+    if (![2, 4, 8].includes(vCores)) continue;
+
+    const skuName = `${SQL_DB_SKU_PREFIX}_${vCores}`;
+
+    console.log(`Found SQL DB price: ${skuName}, ${item.type}, ${item.reservationTerm}, $${item.retailPrice}/hr`);
+
+    prices.push({
+      skuName: skuName,
+      serviceName: item.serviceName,
+      productName: item.productName,
+      meterName: item.meterName,
+      region: item.armRegionName,
+      unitPrice: item.retailPrice,
+      unitOfMeasure: item.unitOfMeasure,
+      reservationTerm: item.reservationTerm,
+      priceType: item.type,
+    });
+  }
+
+  // Fetch storage price (General Purpose Data Stored)
+  const storageFilter = `serviceName eq 'SQL Database' and armRegionName eq '${region}' and meterName eq 'General Purpose Data Stored'`;
+  const storageItems = await fetchAzurePrices(storageFilter);
+
+  for (const item of storageItems) {
+    // Skip DevTest pricing
+    if (item.productName.includes('Dev/Test')) continue;
+
+    prices.push({
+      skuName: 'SQL-DB-Storage',
+      serviceName: item.serviceName,
+      productName: item.productName,
+      meterName: item.meterName,
+      region: item.armRegionName,
+      unitPrice: item.retailPrice,
+      unitOfMeasure: item.unitOfMeasure,
+      reservationTerm: null,
+      priceType: 'Consumption',
+    });
+  }
+
+  return prices;
+}
+
 async function fetchRegionPrices(region: string): Promise<PriceData[]> {
-  const [vmPrices, dcVmPrices, diskPrices, anfPrices] = await Promise.all([
+  const [vmPrices, dcVmPrices, diskPrices, anfPrices, sqlDbPrices] = await Promise.all([
     refreshVmPrices(region),
     refreshDcVmPrices(region),
     refreshDiskPrices(region),
     refreshAnfPrices(region),
+    refreshSqlDbPrices(region),
   ]);
 
-  return [...vmPrices, ...dcVmPrices, ...diskPrices, ...anfPrices];
+  return [...vmPrices, ...dcVmPrices, ...diskPrices, ...anfPrices, ...sqlDbPrices];
 }
 
 export async function refreshAllPrices(): Promise<{ total: number; regions: string[] }> {

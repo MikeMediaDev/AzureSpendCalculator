@@ -106,3 +106,13 @@ export const SUPPORT_LEVELS = [
 
 // Azure Retail Prices API
 export const AZURE_PRICES_API_URL = 'https://prices.azure.com/api/retail/prices';
+
+// Azure SQL Database specifications (General Purpose, vCore, Gen5)
+export const SQL_DB_SIZES = [
+  { value: 'small', label: 'Small', description: '2 vCores', vCores: 2 },
+  { value: 'medium', label: 'Medium', description: '4 vCores', vCores: 4 },
+  { value: 'large', label: 'Large', description: '8 vCores', vCores: 8 },
+] as const;
+
+export const SQL_DB_SKU_PREFIX = 'GP_Gen5'; // General Purpose Gen5
+export const SQL_DB_DEFAULT_STORAGE_GB = 32; // Default storage size in GB

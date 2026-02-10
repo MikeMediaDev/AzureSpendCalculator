@@ -28,10 +28,18 @@ CREATE TABLE IF NOT EXISTS scenarios (
     isv_charge DECIMAL(10, 2) DEFAULT 0,
     support_level VARCHAR(20) DEFAULT 'low',
     support_hourly_rate DECIMAL(10, 2) DEFAULT 0,
+    sql_db_enabled BOOLEAN DEFAULT false,
+    sql_db_size VARCHAR(20),
+    sql_db_storage_gb INTEGER,
     calculation_result JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Migration: Add SQL Database columns to existing scenarios table
+ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS sql_db_enabled BOOLEAN DEFAULT false;
+ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS sql_db_size VARCHAR(20);
+ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS sql_db_storage_gb INTEGER;
 
 -- Index for faster price lookups
 CREATE INDEX IF NOT EXISTS idx_azure_prices_lookup
